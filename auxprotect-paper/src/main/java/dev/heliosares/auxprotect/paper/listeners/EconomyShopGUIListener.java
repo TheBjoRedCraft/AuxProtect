@@ -1,8 +1,8 @@
 package dev.heliosares.auxprotect.paper.listeners;
 
+import dev.heliosares.auxprotect.AuxProtectPaper;
 import dev.heliosares.auxprotect.database.EntryAction;
 import dev.heliosares.auxprotect.database.TransactionEntry;
-import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import me.gypopo.economyshopgui.api.events.PostTransactionEvent;
 import me.gypopo.economyshopgui.objects.ShopItem;
 import org.bukkit.event.EventHandler;

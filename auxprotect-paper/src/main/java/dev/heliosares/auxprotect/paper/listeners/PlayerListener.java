@@ -1,5 +1,6 @@
 package dev.heliosares.auxprotect.paper.listeners;
 
+import dev.heliosares.auxprotect.AuxProtectPaper;
 import dev.heliosares.auxprotect.adapters.sender.SpigotSenderAdapter;
 import dev.heliosares.auxprotect.core.APPermission;
 import dev.heliosares.auxprotect.core.Activity;
@@ -9,7 +10,6 @@ import dev.heliosares.auxprotect.database.EntryAction;
 import dev.heliosares.auxprotect.database.SingleItemEntry;
 import dev.heliosares.auxprotect.database.SpigotDbEntry;
 import dev.heliosares.auxprotect.paper.APPlayerSpigot;
-import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import dev.heliosares.auxprotect.utils.InvSerialization;
 import dev.kshl.kshlib.exceptions.BusyException;
 import java.sql.SQLException;

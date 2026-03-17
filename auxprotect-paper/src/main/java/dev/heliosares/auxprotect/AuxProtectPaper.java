@@ -1,4 +1,4 @@
-package dev.heliosares.auxprotect.paper;
+package dev.heliosares.auxprotect;
 
 import dev.heliosares.auxprotect.adapters.sender.SenderAdapter;
 import dev.heliosares.auxprotect.adapters.sender.SpigotSenderAdapter;
@@ -15,6 +15,9 @@ import dev.heliosares.auxprotect.database.SQLManager;
 import dev.heliosares.auxprotect.database.SpigotDatabaseRunnable;
 import dev.heliosares.auxprotect.database.SpigotSQLManager;
 import dev.heliosares.auxprotect.database.Table;
+import dev.heliosares.auxprotect.paper.APPlayerSpigot;
+import dev.heliosares.auxprotect.paper.APSCommand;
+import dev.heliosares.auxprotect.paper.Telemetry;
 import dev.heliosares.auxprotect.paper.commands.ClaimInvCommand;
 import dev.heliosares.auxprotect.paper.listeners.AuctionHouseListener;
 import dev.heliosares.auxprotect.paper.listeners.ChestShopListener;

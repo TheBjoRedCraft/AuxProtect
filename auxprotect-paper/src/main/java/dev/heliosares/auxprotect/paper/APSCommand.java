@@ -1,5 +1,6 @@
 package dev.heliosares.auxprotect.paper;
 
+import dev.heliosares.auxprotect.AuxProtectPaper;
 import dev.heliosares.auxprotect.adapters.sender.SpigotSenderAdapter;
 import dev.heliosares.auxprotect.core.commands.APCommand;
 import dev.heliosares.auxprotect.paper.commands.InvCommand;

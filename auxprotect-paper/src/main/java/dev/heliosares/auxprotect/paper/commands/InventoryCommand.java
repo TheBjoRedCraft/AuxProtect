@@ -1,5 +1,6 @@
 package dev.heliosares.auxprotect.paper.commands;
 
+import dev.heliosares.auxprotect.AuxProtectPaper;
 import dev.heliosares.auxprotect.adapters.sender.SenderAdapter;
 import dev.heliosares.auxprotect.core.APPermission;
 import dev.heliosares.auxprotect.core.Command;
@@ -13,7 +14,6 @@ import dev.heliosares.auxprotect.exceptions.CommandException;
 import dev.heliosares.auxprotect.exceptions.NotPlayerException;
 import dev.heliosares.auxprotect.exceptions.PlatformException;
 import dev.heliosares.auxprotect.exceptions.SyntaxException;
-import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import dev.heliosares.auxprotect.utils.TimeUtil;
 import dev.kshl.kshlib.exceptions.BusyException;
 import java.sql.SQLException;

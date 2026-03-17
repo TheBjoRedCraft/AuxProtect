@@ -1,6 +1,6 @@
 package dev.heliosares.auxprotect.database;
 
-import dev.heliosares.auxprotect.paper.AuxProtectPaper;
+import dev.heliosares.auxprotect.AuxProtectPaper;
 import dev.heliosares.auxprotect.towny.TownyEntry;
 import dev.heliosares.auxprotect.towny.TownyManager;
 import dev.kshl.kshlib.exceptions.BusyException;

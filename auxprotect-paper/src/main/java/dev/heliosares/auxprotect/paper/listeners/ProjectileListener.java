@@ -1,9 +1,9 @@
 package dev.heliosares.auxprotect.paper.listeners;
 
+import dev.heliosares.auxprotect.AuxProtectPaper;
 import dev.heliosares.auxprotect.database.DbEntry;
 import dev.heliosares.auxprotect.database.EntryAction;
 import dev.heliosares.auxprotect.database.SingleItemEntry;
-import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import java.util.ArrayList;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;

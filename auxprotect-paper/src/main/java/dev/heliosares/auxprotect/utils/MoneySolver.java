@@ -1,10 +1,10 @@
 package dev.heliosares.auxprotect.utils;
 
+import dev.heliosares.auxprotect.AuxProtectPaper;
 import dev.heliosares.auxprotect.core.IAuxProtect;
 import dev.heliosares.auxprotect.core.Language;
 import dev.heliosares.auxprotect.database.DbEntry;
 import dev.heliosares.auxprotect.database.EntryAction;
-import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import java.awt.Color;
 import java.time.Instant;
 import java.time.LocalDate;

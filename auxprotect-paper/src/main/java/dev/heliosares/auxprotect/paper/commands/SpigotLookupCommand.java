@@ -1,5 +1,6 @@
 package dev.heliosares.auxprotect.paper.commands;
 
+import dev.heliosares.auxprotect.AuxProtectPaper;
 import dev.heliosares.auxprotect.adapters.sender.SpigotSenderAdapter;
 import dev.heliosares.auxprotect.core.Language;
 import dev.heliosares.auxprotect.core.Parameters;
@@ -7,7 +8,6 @@ import dev.heliosares.auxprotect.core.commands.LookupCommand;
 import dev.heliosares.auxprotect.database.DbEntry;
 import dev.heliosares.auxprotect.database.TransactionEntry;
 import dev.heliosares.auxprotect.exceptions.LookupException;
-import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import dev.heliosares.auxprotect.utils.MoneySolver;
 import dev.kshl.kshlib.exceptions.BusyException;
 import java.sql.SQLException;

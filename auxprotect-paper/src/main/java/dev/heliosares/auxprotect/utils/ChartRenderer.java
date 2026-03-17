@@ -1,6 +1,6 @@
 package dev.heliosares.auxprotect.utils;
 
-import dev.heliosares.auxprotect.paper.AuxProtectPaper;
+import dev.heliosares.auxprotect.AuxProtectPaper;
 import java.awt.Color;
 import java.util.Arrays;
 import javax.annotation.Nonnull;

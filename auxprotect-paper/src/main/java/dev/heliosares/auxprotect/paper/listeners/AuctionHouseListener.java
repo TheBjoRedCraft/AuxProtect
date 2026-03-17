@@ -2,9 +2,9 @@ package dev.heliosares.auxprotect.paper.listeners;
 
 import com.spawnchunk.auctionhouse.events.ListItemEvent;
 import com.spawnchunk.auctionhouse.events.PurchaseItemEvent;
+import dev.heliosares.auxprotect.AuxProtectPaper;
 import dev.heliosares.auxprotect.database.EntryAction;
 import dev.heliosares.auxprotect.database.SingleItemEntry;
-import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;

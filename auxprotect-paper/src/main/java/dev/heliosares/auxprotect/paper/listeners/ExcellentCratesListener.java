@@ -1,8 +1,8 @@
 package dev.heliosares.auxprotect.paper.listeners;
 
+import dev.heliosares.auxprotect.AuxProtectPaper;
 import dev.heliosares.auxprotect.database.EntryAction;
 import dev.heliosares.auxprotect.database.SpigotDbEntry;
-import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import dev.heliosares.auxprotect.utils.InvSerialization;
 import java.io.IOException;
 import org.bukkit.event.EventHandler;

@@ -1,5 +1,6 @@
 package dev.heliosares.auxprotect.paper.commands;
 
+import dev.heliosares.auxprotect.AuxProtectPaper;
 import dev.heliosares.auxprotect.adapters.sender.SenderAdapter;
 import dev.heliosares.auxprotect.core.APPermission;
 import dev.heliosares.auxprotect.core.Command;
@@ -9,7 +10,6 @@ import dev.heliosares.auxprotect.core.PlatformType;
 import dev.heliosares.auxprotect.exceptions.CommandException;
 import dev.heliosares.auxprotect.exceptions.SyntaxException;
 import dev.heliosares.auxprotect.paper.APPlayerSpigot;
-import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import java.util.ArrayList;
 import java.util.List;
 import org.bukkit.Bukkit;

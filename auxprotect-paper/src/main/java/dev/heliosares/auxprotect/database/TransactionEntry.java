@@ -1,8 +1,8 @@
 package dev.heliosares.auxprotect.database;
 
+import dev.heliosares.auxprotect.AuxProtectPaper;
 import dev.heliosares.auxprotect.adapters.sender.SenderAdapter;
 import dev.heliosares.auxprotect.api.AuxProtectAPI;
-import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import dev.heliosares.auxprotect.utils.InvSerialization;
 import dev.kshl.kshlib.exceptions.BusyException;
 import java.io.IOException;

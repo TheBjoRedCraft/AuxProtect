@@ -2,9 +2,9 @@ package dev.heliosares.auxprotect.paper.listeners;
 
 import com.Acrobot.ChestShop.Events.TransactionEvent;
 import com.Acrobot.ChestShop.Events.TransactionEvent.TransactionType;
+import dev.heliosares.auxprotect.AuxProtectPaper;
 import dev.heliosares.auxprotect.database.EntryAction;
 import dev.heliosares.auxprotect.database.TransactionEntry;
-import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;

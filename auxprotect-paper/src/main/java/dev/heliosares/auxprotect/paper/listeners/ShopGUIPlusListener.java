@@ -1,8 +1,8 @@
 package dev.heliosares.auxprotect.paper.listeners;
 
+import dev.heliosares.auxprotect.AuxProtectPaper;
 import dev.heliosares.auxprotect.database.EntryAction;
 import dev.heliosares.auxprotect.database.TransactionEntry;
-import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import net.brcdev.shopgui.event.ShopPostTransactionEvent;
 import net.brcdev.shopgui.shop.ShopManager.ShopAction;
 import net.brcdev.shopgui.shop.ShopTransactionResult;
