@@ -115,15 +115,15 @@ public class MoneySolver extends ChartRenderer {
     if (!(plugin instanceof AuxProtectPaper)) {
       return;
     }
-    plugin.runSync(() -> {
+    AuxProtectPaper.getMorePaperLib().scheduling().entitySpecificScheduler(player).run(() -> {
       try {
-        MoneySolver solver = new MoneySolver((AuxProtectPaper) plugin, player, results, time,
+        MoneySolver solver = new MoneySolver(AuxProtectPaper.getInstance(), player, results, time,
             users);
         player.getInventory().addItem(solver.asItem(player));
       } catch (IllegalArgumentException e) {
         player.sendMessage(Language.translate(Language.L.COMMAND__LOOKUP__NORESULTS));
       }
-    });
+    }, null);
   }
 
   @Override

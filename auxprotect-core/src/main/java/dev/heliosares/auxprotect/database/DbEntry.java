@@ -41,7 +41,8 @@ public class DbEntry {
   @Setter
   private byte[] blob;
 
-  DbEntry(String userLabel, EntryAction action, boolean state, String world, int x, int y, int z,
+  public DbEntry(String userLabel, EntryAction action, boolean state, String world, int x, int y,
+      int z,
       int pitch,
       int yaw, String targetLabel, String data, SQLManager sql) {
     this.snowflake = Snowflake.getNextSnowflake();

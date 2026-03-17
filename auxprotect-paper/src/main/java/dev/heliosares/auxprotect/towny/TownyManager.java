@@ -130,7 +130,7 @@ public class TownyManager implements Runnable {
       names.put(uid, name);
     };
     if (async) {
-      plugin.getServer().getScheduler().runTaskAsynchronously(plugin, run);
+      AuxProtectPaper.getMorePaperLib().scheduling().asyncScheduler().run((run));
     } else {
       run.run();
     }

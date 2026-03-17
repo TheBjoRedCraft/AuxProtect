@@ -2,9 +2,11 @@ package dev.heliosares.auxprotect.paper.listeners;
 
 import dev.heliosares.auxprotect.database.DbEntry;
 import dev.heliosares.auxprotect.database.EntryAction;
+import dev.heliosares.auxprotect.database.SQLManager;
 import dev.heliosares.auxprotect.database.SingleItemEntry;
 import dev.heliosares.auxprotect.database.SpigotDbEntry;
 import dev.heliosares.auxprotect.paper.AuxProtectPaper;
+import org.bukkit.Location;
 import org.bukkit.entity.ItemFrame;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -48,17 +50,18 @@ public class WorldListener implements Listener {
 
   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
   public void on(RaidTriggerEvent e) {
-    plugin.getServer().getScheduler().runTaskLater(plugin, () -> plugin.add(new SpigotDbEntry(
-        AuxProtectPaper.getLabel(e.getPlayer()), EntryAction.RAIDTRIGGER, false,
-        e.getPlayer().getLocation(), "", "")), 3);
+    AuxProtectPaper.getMorePaperLib().scheduling().globalRegionalScheduler().runDelayed(
+        () -> plugin.add(
+            createDbEntry(AuxProtectPaper.getLabel(e.getPlayer()), EntryAction.RAIDTRIGGER, false,
+                e.getPlayer().getLocation(), "", "")), 3L);
   }
 
   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
   public void on(RaidSpawnWaveEvent e) {
-    plugin.getServer().getScheduler().runTaskLater(plugin, () -> e.getRaiders().forEach(
-        raider -> plugin.add(
-            new SpigotDbEntry("#raid", EntryAction.RAIDSPAWN, false, raider.getLocation(),
-                AuxProtectPaper.getLabel(raider), ""))), 1);
+    AuxProtectPaper.getMorePaperLib().scheduling().globalRegionalScheduler().runDelayed(
+        () -> e.getRaiders().forEach(raider -> plugin.add(
+            createDbEntry("#raid", EntryAction.RAIDSPAWN, false, raider.getLocation(),
+                AuxProtectPaper.getLabel(raider), ""))), 1L);
   }
 
   @EventHandler
@@ -75,5 +78,15 @@ public class WorldListener implements Listener {
       );
       plugin.add(sie);
     }
+  }
+
+  private DbEntry createDbEntry(String userLabel, EntryAction action, boolean state,
+      Location location, String targetLabel, String data) {
+    return new DbEntry(
+        userLabel, action, state, location.getWorld().getName(), location.blockX(),
+        location.blockY(), location.blockZ(), (int) location.getPitch(), (int) location.getYaw(),
+        targetLabel, data,
+        SQLManager.getInstance()
+    );
   }
 }
