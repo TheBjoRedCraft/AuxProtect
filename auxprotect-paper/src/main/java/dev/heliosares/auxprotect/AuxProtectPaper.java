@@ -49,11 +49,9 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -81,7 +79,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitRunnable;
 import space.arim.morepaperlib.MorePaperLib;
 
 public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
@@ -227,7 +224,7 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
       throw new RuntimeException(e);
     }
 
-    getServer().getScheduler().runTaskAsynchronously(this, this::initDatabase);
+    getMorePaperLib().scheduling().asyncScheduler().run(this::initDatabase);
 
     dbRunnable = new SpigotDatabaseRunnable(this, sqlManager);
     AuxProtectPaper.getMorePaperLib().scheduling().asyncScheduler()
@@ -282,11 +279,11 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
         .setExecutor((apcommand = createAPSCommand()));
     Objects.requireNonNull(this.getCommand("auxprotect")).setTabCompleter(apcommand);
 
-    AuxProtectPaper.getMorePaperLib().scheduling().globalRegionalScheduler().runDelayed(() -> {
+    AuxProtectPaper.getMorePaperLib().scheduling().globalRegionalScheduler().run(() -> {
       checkcommand("auxprotect");
       checkcommand(getCommandAlias());
       checkcommand("claiminv");
-    }, 60L);
+    });
 
     if (!isPrivate()) {
       EntryAction.ALERT.setEnabled(false);
@@ -301,113 +298,75 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
       this.getAPPlayer(player);
     }
 
-    new BukkitRunnable() {
+    AuxProtectPaper.getMorePaperLib().scheduling().asyncScheduler().runAtFixedRate(() -> {
+      final ReentrantLock lock = new ReentrantLock();
 
-      private final ReentrantLock lock = new ReentrantLock();
-
-      @Override
-      public void run() {
-        if (!isEnabled() || sqlManager == null || !sqlManager.isConnected()) {
-          return;
-        }
-        if (!lock.tryLock()) {
-          return;
-        }
-        try {
-          for (Player player : getServer().getOnlinePlayers()) {
-            try {
-              periodicPlayerTick(getAPPlayer(player));
-            } catch (Throwable t) {
-              warning("An error occurred processing player tick for " + player.getName());
-              print(t);
-            }
-          }
-        } finally {
-          lock.unlock();
-        }
+      if (!isEnabled() || sqlManager == null || !sqlManager.isConnected()) {
+        return;
       }
-    }.runTaskTimerAsynchronously(this, 40, 4);
-    new BukkitRunnable() {
-
-      private boolean running;
-
-      @Override
-      public void run() {
-        if (!isEnabled() || sqlManager == null) {
-          return;
-        }
-
-        String migrationStatus = sqlManager.getMigrationStatus();
-        if (migrationStatus != null) {
-          info(migrationStatus);
-        }
-
-        if (running || !sqlManager.isConnected()) {
-          return;
-        }
-        running = true;
-        try {
-          List<APPlayerSpigot> players;
-          // Make a new list to not tie up other calls to apPlayers
-          synchronized (apPlayers) {
-            players = new ArrayList<>(apPlayers.values());
-          }
-          for (APPlayerSpigot apPlayer : players) {
-            if (!apPlayer.getPlayer().isOnline()) {
-              continue;
-            }
-            if (config.getInventoryDiffInterval() > 0) {
-              if (System.currentTimeMillis() - apPlayer.lastLoggedInventoryDiff
-                  >= config.getInventoryDiffInterval()) {
-                apPlayer.tickDiffInventory();
-              }
-            }
-          }
-        } finally {
-          running = false;
-        }
+      if (!lock.tryLock()) {
+        return;
       }
-    }.runTaskTimerAsynchronously(this, 40, 20);
-
-    new BukkitRunnable() {
-
-      @Override
-      public void run() {
-        if (config.shouldCheckForUpdates()
-            && System.currentTimeMillis() - lastCheckedForUpdate > 1000 * 60 * 60) {
-          lastCheckedForUpdate = System.currentTimeMillis();
-          debug("Checking for updates...", 1);
-          String newVersion;
+      try {
+        for (Player player : getServer().getOnlinePlayers()) {
           try {
-            newVersion = UpdateChecker.getVersion(99147);
-          } catch (IOException e) {
-            print(e);
-            return;
+            periodicPlayerTick(getAPPlayer(player));
+          } catch (Throwable t) {
+            warning("An error occurred processing player tick for " + player.getName());
+            print(t);
           }
-          debug("New Version: " + newVersion + " Current Version: "
-              + AuxProtectPaper.this.getDescription().getVersion(), 1);
-          if (newVersion != null) {
-            int compare = UpdateChecker.compareVersions(
-                AuxProtectPaper.this.getDescription().getVersion(), newVersion);
-            if (compare <= 0) {
-              update = null;
-            } else {
-              boolean newUpdate = update == null;
-              update = newVersion;
-              if (newUpdate) {
-                for (Player player : Bukkit.getOnlinePlayers()) {
-                  if (APPermission.ADMIN.hasPermission(new SpigotSenderAdapter(
-                      AuxProtectPaper.this, player))) {
-                    AuxProtectPaper.this.tellAboutUpdate(player);
-                  }
+        }
+      } finally {
+        lock.unlock();
+      }
+    }, Duration.ofSeconds(2), Duration.ofMillis(200));
+
+    AuxProtectPaper.getMorePaperLib().scheduling().asyncScheduler().runAtFixedRate(() -> {
+      if (!isEnabled() || sqlManager == null) {
+        return;
+      }
+
+      String migrationStatus = sqlManager.getMigrationStatus();
+      if (migrationStatus != null) {
+        info(migrationStatus);
+      }
+    }, Duration.ofSeconds(2), Duration.ofSeconds(1));
+
+    AuxProtectPaper.getMorePaperLib().scheduling().asyncScheduler().runAtFixedRate(() -> {
+      if (config.shouldCheckForUpdates()
+          && System.currentTimeMillis() - lastCheckedForUpdate > 1000 * 60 * 60) {
+        lastCheckedForUpdate = System.currentTimeMillis();
+        debug("Checking for updates...", 1);
+        String newVersion;
+        try {
+          newVersion = UpdateChecker.getVersion(99147);
+        } catch (IOException e) {
+          print(e);
+          return;
+        }
+        debug("New Version: " + newVersion + " Current Version: "
+            + AuxProtectPaper.this.getDescription().getVersion(), 1);
+        if (newVersion != null) {
+          int compare = UpdateChecker.compareVersions(
+              AuxProtectPaper.this.getDescription().getVersion(), newVersion);
+          if (compare <= 0) {
+            update = null;
+          } else {
+            boolean newUpdate = update == null;
+            update = newVersion;
+            if (newUpdate) {
+              for (Player player : Bukkit.getOnlinePlayers()) {
+                if (APPermission.ADMIN.hasPermission(new SpigotSenderAdapter(
+                    AuxProtectPaper.this, player))) {
+                  AuxProtectPaper.this.tellAboutUpdate(player);
                 }
-                AuxProtectPaper.this.tellAboutUpdate(Bukkit.getConsoleSender());
               }
+              AuxProtectPaper.this.tellAboutUpdate(Bukkit.getConsoleSender());
             }
           }
         }
       }
-    }.runTaskTimerAsynchronously(this, 20, 10 * 20);
+    }, Duration.ofSeconds(1), Duration.ofSeconds(10));
 
     dbRunnable.add(new DbEntry("#console", EntryAction.PLUGINLOAD, true, "AuxProtect", ""));
   }
@@ -698,12 +657,12 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
 
   @Override
   public void runAsync(Runnable run) {
-    getServer().getScheduler().runTaskAsynchronously(this, run);
+    getMorePaperLib().scheduling().asyncScheduler().run(run);
   }
 
   @Override
   public void runSync(Runnable run) {
-    getServer().getScheduler().runTask(this, run);
+    getMorePaperLib().scheduling().globalRegionalScheduler().run(run);
   }
 
   public int queueSize() {

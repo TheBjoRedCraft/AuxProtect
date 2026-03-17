@@ -8,7 +8,7 @@ plugins {
 }
 
 paper {
-    main = "dev.heliosares.auxprotect.spigot.AuxProtectPaper"
+    main = "dev.heliosares.auxprotect.AuxProtectPaper"
     authors = listOf("Heliosares", "ks-hl", "red")
     name = "AuxProtect"
     apiVersion = "1.21.11"

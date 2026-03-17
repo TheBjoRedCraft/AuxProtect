@@ -1,5 +1,6 @@
 package dev.heliosares.auxprotect.adapters.sender;
 
+import com.palmergames.paperlib.PaperLib;
 import dev.heliosares.auxprotect.AuxProtectPaper;
 import dev.heliosares.auxprotect.adapters.location.LocationAdapter;
 import dev.heliosares.auxprotect.adapters.location.SpigotLocationAdapter;
@@ -12,10 +13,11 @@ import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
 
 public class SpigotSenderAdapter extends SenderAdapter<CommandSender, AuxProtectPaper> implements
     PositionedSender, BungeeComponentSender {
+
+  int tries;
 
   public SpigotSenderAdapter(AuxProtectPaper plugin, CommandSender sender) {
     super(sender, plugin);
@@ -66,21 +68,17 @@ public class SpigotSenderAdapter extends SenderAdapter<CommandSender, AuxProtect
     if (sender instanceof Player player) {
       World world = plugin.getServer().getWorld(worldname);
       final Location target = new Location(world, x, y, z, yaw, pitch);
-      player.teleport(target);
+      PaperLib.teleportAsync(player, target);
       if (player.getGameMode() == GameMode.SPECTATOR) {
-        new BukkitRunnable() {
-          int tries;
-
-          @Override
-          public void run() {
-            if (tries++ >= 5 || (player.getWorld().equals(target.getWorld())
-                && player.getLocation().distance(target) < 2)) {
-              this.cancel();
-              return;
-            }
-            player.teleport(target);
-          }
-        }.runTaskTimer(plugin, 2, 1);
+        AuxProtectPaper.getMorePaperLib().scheduling().entitySpecificScheduler(player)
+            .runAtFixedRate(task -> {
+              if (tries++ >= 5 || (player.getWorld().equals(target.getWorld())
+                  && player.getLocation().distance(target) < 2)) {
+                task.cancel();
+                return;
+              }
+              PaperLib.teleportAsync(player, target);
+            }, null, 2, 1);
       }
     } else {
       throw new UnsupportedOperationException();

@@ -245,8 +245,9 @@ public class InvCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S, P>
         i1++;
       }
 
-      enderpane.onClose((p) -> plugin.getServer().getScheduler()
-          .runTaskLater(plugin, () -> player.openInventory(mainInv), 1));
+      enderpane.onClose(
+          (p) -> AuxProtectPaper.getMorePaperLib().scheduling().entitySpecificScheduler(player)
+              .run(() -> player.openInventory(mainInv), null));
       return mainInv;
     }
     return null;

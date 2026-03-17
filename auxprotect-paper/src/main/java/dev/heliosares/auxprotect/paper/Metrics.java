@@ -15,6 +15,7 @@ package dev.heliosares.auxprotect.paper;
  * Violations will result in a ban of your plugin and account from bStats.
  */
 
+import dev.heliosares.auxprotect.AuxProtectPaper;
 import dev.heliosares.auxprotect.api.AuxProtectAPI;
 import dev.heliosares.auxprotect.database.SQLManager;
 import dev.kshl.kshlib.exceptions.BusyException;
@@ -102,7 +103,8 @@ public class Metrics {
     metricsBase = new MetricsBase("bukkit", serverUUID, serviceId, enabled,
         this::appendPlatformData,
         this::appendServiceData,
-        submitDataTask -> Bukkit.getScheduler().runTask(plugin, submitDataTask),
+        submitDataTask -> AuxProtectPaper.getMorePaperLib().scheduling().asyncScheduler()
+            .run(submitDataTask),
         plugin::isEnabled,
         (message, error) -> this.plugin.getLogger().log(Level.WARNING, message, error),
         (message) -> this.plugin.getLogger().log(Level.INFO, message), logErrors, logSentData,
