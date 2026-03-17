@@ -13,4 +13,5 @@ dependencies {
     implementation(project(":auxprotect-core"))
     implementation("dev.kshl", "KshLib", "2.0")
     compileOnly("com.velocitypowered:velocity-api:3.5.0-SNAPSHOT")
+    implementation("jakarta.annotation", "jakarta.annotation-api", "3.0.0")
 }

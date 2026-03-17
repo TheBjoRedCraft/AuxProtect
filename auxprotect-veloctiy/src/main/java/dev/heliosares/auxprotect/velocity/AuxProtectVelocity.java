@@ -10,7 +10,6 @@ import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ConsoleCommandSource;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
-import dev.heliosares.auxprotect.AuxProtectVersion;
 import dev.heliosares.auxprotect.adapters.message.MessageBuilder;
 import dev.heliosares.auxprotect.adapters.message.VelocityMessageBuilder;
 import dev.heliosares.auxprotect.adapters.sender.SenderAdapter;
@@ -30,11 +29,6 @@ import dev.heliosares.auxprotect.utils.YamlConfig;
 import dev.kshl.kshlib.exceptions.BusyException;
 import dev.kshl.kshlib.function.ConnectionConsumer;
 import jakarta.annotation.Nullable;
-import lombok.Getter;
-import lombok.Setter;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
-
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -53,390 +47,410 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
+import lombok.Getter;
+import lombok.Setter;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
-@Plugin(id = "auxprotect", name = "AuxProtect", version = AuxProtectVersion.VERSION, url = "https://github.com/ks-hl/AuxProtect")
+@Plugin(id = "auxprotect", name = "AuxProtect", version = "1.3.4-pre6", url = "https://github.com/ks-hl/AuxProtect")
 public final class AuxProtectVelocity implements IAuxProtect {
-    private static final DateTimeFormatter ERROR_TIME_FORMAT = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
-    private static AuxProtectVelocity instance;
-    private final APConfig config = new APConfig();
-    private final HashMap<UUID, APPlayerVelocity> apPlayers = new HashMap<>();
-    final Set<Integer> stackHashHistory = new HashSet<>();
-    private DatabaseRunnable dbRunnable;
-    @Getter
-    SQLManager sqlManager;
-    private boolean isShuttingDown;
-    private String stackLog = "";
-    private boolean enabled;
-    private final ProxyServer server;
-    @Getter
-    private final Logger logger;
-    private final Path dataDirectory;
-    @Setter
-    @Getter
-    private boolean defaultChatLogging = true;
 
-    @Inject
-    public AuxProtectVelocity(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
-        this.server = server;
-        this.logger = logger;
-        this.dataDirectory = dataDirectory;
+  private static final DateTimeFormatter ERROR_TIME_FORMAT = DateTimeFormatter.ofPattern(
+      "HH:mm:ss.SSS");
+  private static AuxProtectVelocity instance;
+  final Set<Integer> stackHashHistory = new HashSet<>();
+  private final APConfig config = new APConfig();
+  private final HashMap<UUID, APPlayerVelocity> apPlayers = new HashMap<>();
+  private final ProxyServer server;
+  @Getter
+  private final Logger logger;
+  private final Path dataDirectory;
+  @Getter
+  SQLManager sqlManager;
+  private DatabaseRunnable dbRunnable;
+  private boolean isShuttingDown;
+  private String stackLog = "";
+  private boolean enabled;
+  @Setter
+  @Getter
+  private boolean defaultChatLogging = true;
+
+  @Inject
+  public AuxProtectVelocity(ProxyServer server, Logger logger, @DataDirectory Path dataDirectory) {
+    this.server = server;
+    this.logger = logger;
+    this.dataDirectory = dataDirectory;
+  }
+
+  public static IAuxProtect getInstance() {
+    return instance;
+  }
+
+  public static String getLabel(Object o) {
+    if (o instanceof UUID) {
+      return "$" + o;
+    }
+    if (o instanceof Player player) {
+      return getLabel(player.getUniqueId());
+    }
+    if (o instanceof ConsoleCommandSource) {
+      return "#console";
+    }
+    return "#null";
+  }
+
+  public static String toString(Component component) {
+    return PlainTextComponentSerializer.plainText().serialize(component);
+  }
+
+  @Subscribe
+  public void onProxyInitialization(ProxyInitializeEvent event) {
+
+    AuxProtectAPI.setInstance(instance = this);
+    enabled = true;
+    try {
+      config.load(this, new File(this.getDataFolder(), "config.yml"),
+          () -> getResource("config.yml"));
+    } catch (Exception e1) {
+      warning("Failed to load config");
+      print(e1);
+    }
+    // TODO reloadable
+    try {
+      String langFileName = "lang/" + config.getConfig().getString("lang").orElse("") + ".yml";
+      Language.load(this, () -> new YamlConfig(new File(getDataFolder(), langFileName),
+              () -> getResource(langFileName)),
+          () -> new YamlConfig(null, () -> getResource(langFileName)));
+    } catch (FileNotFoundException e1) {
+      warning("Language file not found");
+    } catch (Exception e1) {
+      warning("Failed to load lang");
+      print(e1);
     }
 
-    public static IAuxProtect getInstance() {
-        return instance;
-    }
+    server.getCommandManager()
+        .register(getCommandPrefix(), new APVCommand(this, this.getCommandPrefix()),
+            getCommandAlias(), "apb");
+    server.getEventManager().register(this, new APVListener(this));
 
-    public static String getLabel(Object o) {
-        if (o instanceof UUID) {
-            return "$" + o;
+    File sqliteFile = null;
+    String hostAndPort = null;
+    String database = null;
+    String user = null;
+    String pass = null;
+    if (getAPConfig().isMySQL()) {
+      hostAndPort = getAPConfig().getHost() + ":" + getAPConfig().getPort();
+      database = getAPConfig().getDatabase();
+      user = getAPConfig().getUser();
+      pass = getAPConfig().getPass();
+    } else {
+      sqliteFile = new File(getDataFolder(), "database/auxprotect.db");
+      if (!sqliteFile.getParentFile().exists()) {
+        if (!sqliteFile.getParentFile().mkdirs()) {
+          this.getLogger().severe("Failed to create database directory.");
+          onProxyShutdown(null);
+          return;
         }
-        if (o instanceof Player player) {
-            return getLabel(player.getUniqueId());
-        }
-        if (o instanceof ConsoleCommandSource) {
-            return "#console";
-        }
-        return "#null";
-    }
-
-    @Subscribe
-    public void onProxyInitialization(ProxyInitializeEvent event) {
-
-        AuxProtectAPI.setInstance(instance = this);
-        enabled = true;
+      }
+      if (!sqliteFile.exists()) {
         try {
-            config.load(this, new File(this.getDataFolder(), "config.yml"), () -> getResource("config.yml"));
-        } catch (Exception e1) {
-            warning("Failed to load config");
-            print(e1);
+          if (!sqliteFile.createNewFile()) {
+            throw new IOException();
+          }
+        } catch (IOException e) {
+          this.getLogger().severe("Failed to create database file.");
+          onProxyShutdown(null);
+          return;
         }
-        // TODO reloadable
-        try {
-            String langFileName = "lang/" + config.getConfig().getString("lang").orElse("") + ".yml";
-            Language.load(this, () -> new YamlConfig(new File(getDataFolder(), langFileName), () -> getResource(langFileName)), () -> new YamlConfig(null, () -> getResource(langFileName)));
-        } catch (FileNotFoundException e1) {
-            warning("Language file not found");
-        } catch (Exception e1) {
-            warning("Failed to load lang");
-            print(e1);
-        }
-
-        server.getCommandManager().register(getCommandPrefix(), new APVCommand(this, this.getCommandPrefix()), getCommandAlias(), "apb");
-        server.getEventManager().register(this, new APVListener(this));
-
-        File sqliteFile = null;
-        String hostAndPort = null;
-        String database = null;
-        String user = null;
-        String pass = null;
-        if (getAPConfig().isMySQL()) {
-            hostAndPort = getAPConfig().getHost() + ":" + getAPConfig().getPort();
-            database = getAPConfig().getDatabase();
-            user = getAPConfig().getUser();
-            pass = getAPConfig().getPass();
-        } else {
-            sqliteFile = new File(getDataFolder(), "database/auxprotect.db");
-            if (!sqliteFile.getParentFile().exists()) {
-                if (!sqliteFile.getParentFile().mkdirs()) {
-                    this.getLogger().severe("Failed to create database directory.");
-                    onProxyShutdown(null);
-                    return;
-                }
-            }
-            if (!sqliteFile.exists()) {
-                try {
-                    if (!sqliteFile.createNewFile()) {
-                        throw new IOException();
-                    }
-                } catch (IOException e) {
-                    this.getLogger().severe("Failed to create database file.");
-                    onProxyShutdown(null);
-                    return;
-                }
-            }
-        }
-        try {
-            sqlManager = new SQLManager(this, hostAndPort, database, getAPConfig().getTablePrefix(), sqliteFile, user, pass);
-        } catch (ClassNotFoundException e) {
-            warning("No driver for SQL found. Disabling");
-            onProxyShutdown(null);
-            throw new RuntimeException(e);
-        } catch (SQLException | IOException e) {
-            warning("Failed to create database instance");
-            onProxyShutdown(null);
-            throw new RuntimeException(e);
-        }
-
-        runAsync(() -> {
-            try {
-                sqlManager.init();
-                if (!config.isSkipRowCount()) sqlManager.count();
-            } catch (Exception e) {
-                print(e);
-                getLogger().severe("Failed to connect to SQL database. Disabling.");
-                onProxyShutdown(null);
-            }
-        });
-
-        dbRunnable = new DatabaseRunnable(this, sqlManager);
-
-        server.getScheduler().buildTask(this, dbRunnable).repeat(250, TimeUnit.MILLISECONDS).schedule();
-
-        dbRunnable.add(new DbEntry("#console", EntryAction.PLUGINLOAD, true, "AuxProtect", ""));
+      }
+    }
+    try {
+      sqlManager = new SQLManager(this, hostAndPort, database, getAPConfig().getTablePrefix(),
+          sqliteFile, user, pass);
+    } catch (ClassNotFoundException e) {
+      warning("No driver for SQL found. Disabling");
+      onProxyShutdown(null);
+      throw new RuntimeException(e);
+    } catch (SQLException | IOException e) {
+      warning("Failed to create database instance");
+      onProxyShutdown(null);
+      throw new RuntimeException(e);
     }
 
-    @Subscribe
-    public void onProxyShutdown(ProxyShutdownEvent event) {
-        enabled = false;
-        isShuttingDown = true;
-        server.getEventManager().unregisterListeners(this);
+    runAsync(() -> {
+      try {
+        sqlManager.init();
+          if (!config.isSkipRowCount()) {
+              sqlManager.count();
+          }
+      } catch (Exception e) {
+        print(e);
+        getLogger().severe("Failed to connect to SQL database. Disabling.");
+        onProxyShutdown(null);
+      }
+    });
+
+    dbRunnable = new DatabaseRunnable(this, sqlManager);
+
+    server.getScheduler().buildTask(this, dbRunnable).repeat(250, TimeUnit.MILLISECONDS).schedule();
+
+    dbRunnable.add(new DbEntry("#console", EntryAction.PLUGINLOAD, true, "AuxProtect", ""));
+  }
+
+  @Subscribe
+  public void onProxyShutdown(ProxyShutdownEvent event) {
+    enabled = false;
+    isShuttingDown = true;
+    server.getEventManager().unregisterListeners(this);
 //        server.getCommandManager().unregisterCommands(this); TODO necessary?
-        if (dbRunnable != null) {
-            dbRunnable.add(new DbEntry("#console", EntryAction.PLUGINLOAD, false, "AuxProtect", ""));
-            try {
-                info("Logging final entries... (If you are reloading the plugin, this may cause lag)");
-                sqlManager.markAsShuttingDown();
-                sqlManager.execute((ConnectionConsumer) connection -> dbRunnable.run(true), 3000L);
-            } catch (BusyException e) {
-                warning("Database busy, some entries will be lost.");
-            } catch (SQLException e) {
-                warning("Error while logging final entries, some entries will be lost.");
-                print(e);
-            }
-            dbRunnable = null;
+    if (dbRunnable != null) {
+      dbRunnable.add(new DbEntry("#console", EntryAction.PLUGINLOAD, false, "AuxProtect", ""));
+      try {
+        info("Logging final entries... (If you are reloading the plugin, this may cause lag)");
+        sqlManager.markAsShuttingDown();
+        sqlManager.execute((ConnectionConsumer) connection -> dbRunnable.run(true), 3000L);
+      } catch (BusyException e) {
+        warning("Database busy, some entries will be lost.");
+      } catch (SQLException e) {
+        warning("Error while logging final entries, some entries will be lost.");
+        print(e);
+      }
+      dbRunnable = null;
+    }
+    if (sqlManager != null) {
+      sqlManager.close();
+      sqlManager = null;
+    }
+    info("Done disabling.");
+  }
+
+  @Override
+  public boolean isShuttingDown() {
+    return isShuttingDown;
+  }
+
+  @Override
+  public File getDataFolder() {
+    return dataDirectory.toFile();
+  }
+
+  @Override
+  public InputStream getResource(String string) {
+    return getClass().getClassLoader().getResourceAsStream(string);
+  }
+
+  @Override
+  public void info(String string) {
+    this.getLogger().info(string);
+  }
+
+  @Override
+  public void debug(String string) {
+    debug(string, 1);
+  }
+
+  @Override
+  public void debug(String string, int verbosity) {
+    if (getAPConfig().getDebug() >= verbosity) {
+      this.info("DEBUG" + verbosity + ": " + string);
+    }
+  }
+
+  @Override
+  public void warning(String message) {
+    getLogger().warning(message);
+    logToStackLog("[WARNING] " + message);
+  }
+
+  @Override
+  public void print(Throwable t) {
+    getLogger().log(Level.WARNING, t.getMessage(), t);
+    String stack = StackUtil.format(t, 3);
+    if (stackHashHistory.add(stack.hashCode())) {
+      stack = StackUtil.format(t, 20);
+    }
+    logToStackLog(stack);
+  }
+
+  private void logToStackLog(String msg) {
+    stackLog += "[" + LocalDateTime.now().format(ERROR_TIME_FORMAT) + "] " + msg + "\n";
+  }
+
+  @Override
+  public String getStackLog() {
+    return stackLog;
+  }
+
+  @Override
+  public PlatformType getPlatform() {
+    return PlatformType.VELOCITY;
+  }
+
+  @Override
+  public APConfig getAPConfig() {
+    return config;
+  }
+
+  @Override
+  public void add(DbEntry dbEntry) {
+    dbRunnable.add(dbEntry);
+  }
+
+  @Override
+  public void runAsync(Runnable run) {
+    server.getScheduler().buildTask(this, run).schedule();
+  }
+
+  @Override
+  public void runSync(Runnable run) {
+    runAsync(run);
+  }
+
+  @Override
+  public String getCommandPrefix() {
+    return "auxprotectvelocity";
+  }
+
+  @Override
+  public String getCommandAlias() {
+    return "apv";
+  }
+
+  @Override
+  public VelocitySenderAdapter getConsoleSender() {
+    return new VelocitySenderAdapter(this, this.getProxy().getConsoleCommandSource());
+  }
+
+  @Nullable
+  @Override
+  public VelocitySenderAdapter getSenderAdapter(String name) {
+    return server.getPlayer(name).map(player -> new VelocitySenderAdapter(this, player))
+        .orElse(null);
+  }
+
+  @Override
+  public boolean isHooked(String name) {
+    // TODO Future implementation
+    return false;
+  }
+
+  @Override
+  public File getRootDirectory() {
+    return getDataFolder();
+  }
+
+  @Override
+  public String getPlatformVersion() {
+    return getProxy().getVersion().getVersion();
+  }
+
+  @Override
+  public String getPluginVersion() {
+    return getPlugin().map(plugin -> plugin.getDescription().getVersion().orElse("!blank"))
+        .orElse("!plugin not found");
+  }
+
+  public Optional<PluginContainer> getPlugin() {
+    return this.server.getPluginManager().getPlugin("auxprotect");
+  }
+
+  @Override
+  public APPlayerVelocity getAPPlayer(SenderAdapter<?, ?> sender) {
+      if (!(sender.getSender() instanceof Player player)) {
+          return null;
+      }
+    synchronized (apPlayers) {
+      return apPlayers.compute(sender.getUniqueId(), (k, apPlayer) -> {
+        // Ensures the APPlayer's Player instance is the most recent
+        if (apPlayer != null && apPlayer.getPlayer().isActive()) {
+          return apPlayer;
         }
-        if (sqlManager != null) {
-            sqlManager.close();
-            sqlManager = null;
-        }
-        info("Done disabling.");
+        return new APPlayerVelocity(this, player);
+      });
+    }
+  }
+
+  public void removeOfflineAPPlayers(UUID uuid) {
+    synchronized (apPlayers) {
+      apPlayers.remove(uuid);
+      apPlayers.values().removeIf(apPlayer -> !apPlayer.getPlayer().isActive());
+    }
+  }
+
+  @Override
+  public int queueSize() {
+    return dbRunnable.queueSize();
+  }
+
+  @Override
+  public Set<String> listPlayers() {
+    return server.getAllPlayers().stream().map(Player::getUsername)
+        .collect(Collectors.toUnmodifiableSet());
+  }
+
+  @Override
+  public boolean isEnabled() {
+    return enabled;
+  }
+
+  @Override
+  public void addRemoveEntryListener(Consumer<DbEntry> consumer, boolean add) {
+    dbRunnable.addRemoveEntryListener(consumer, add);
+  }
+
+  @Override
+  public void broadcast(String msg, APPermission node) {
+    server.getAllPlayers().stream().filter(player -> player.hasPermission(node.node))
+        .forEach(player -> player.sendMessage(Component.text(msg)));
+  }
+
+  @Override
+  public boolean doesWorldExist(String world) {
+    return false;
+  }
+
+  @Override
+  public Set<String> getWorlds() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public boolean isPrimaryThread() {
+    return false;
+  }
+
+  @Override
+  public MessageBuilder getMessageBuilder() {
+    return new VelocityMessageBuilder();
+  }
+
+  @Override
+  public Set<String> getEntityTypes() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public Set<String> getItemTypes() {
+    throw new UnsupportedOperationException();
+  }
+
+  public String formatMoney(double d) {
+    if (!Double.isFinite(d) || Double.isNaN(d)) {
+      return "$NaN";
+    }
+    if (Math.abs(d) <= 1E-6) {
+      return "$0";
     }
 
-    @Override
-    public boolean isShuttingDown() {
-        return isShuttingDown;
-    }
+    return "$" + (Math.round(d * 100) / 100.0);
+  }
 
-    @Override
-    public File getDataFolder() {
-        return dataDirectory.toFile();
-    }
+  public ProxyServer getProxy() {
+    return server;
+  }
 
-    @Override
-    public InputStream getResource(String string) {
-        return getClass().getClassLoader().getResourceAsStream(string);
-    }
-
-    @Override
-    public void info(String string) {
-        this.getLogger().info(string);
-    }
-
-    @Override
-    public void debug(String string) {
-        debug(string, 1);
-    }
-
-    @Override
-    public void debug(String string, int verbosity) {
-        if (getAPConfig().getDebug() >= verbosity) {
-            this.info("DEBUG" + verbosity + ": " + string);
-        }
-    }
-
-    @Override
-    public void warning(String message) {
-        getLogger().warning(message);
-        logToStackLog("[WARNING] " + message);
-    }
-
-    @Override
-    public void print(Throwable t) {
-        getLogger().log(Level.WARNING, t.getMessage(), t);
-        String stack = StackUtil.format(t, 3);
-        if (stackHashHistory.add(stack.hashCode())) {
-            stack = StackUtil.format(t, 20);
-        }
-        logToStackLog(stack);
-    }
-
-    private void logToStackLog(String msg) {
-        stackLog += "[" + LocalDateTime.now().format(ERROR_TIME_FORMAT) + "] " + msg + "\n";
-    }
-
-    @Override
-    public String getStackLog() {
-        return stackLog;
-    }
-
-    @Override
-    public PlatformType getPlatform() {
-        return PlatformType.VELOCITY;
-    }
-
-    @Override
-    public APConfig getAPConfig() {
-        return config;
-    }
-
-    @Override
-    public void add(DbEntry dbEntry) {
-        dbRunnable.add(dbEntry);
-    }
-
-    @Override
-    public void runAsync(Runnable run) {
-        server.getScheduler().buildTask(this, run).schedule();
-    }
-
-    @Override
-    public void runSync(Runnable run) {
-        runAsync(run);
-    }
-
-    @Override
-    public String getCommandPrefix() {
-        return "auxprotectvelocity";
-    }
-
-    @Override
-    public String getCommandAlias() {
-        return "apv";
-    }
-
-    @Override
-    public VelocitySenderAdapter getConsoleSender() {
-        return new VelocitySenderAdapter(this, this.getProxy().getConsoleCommandSource());
-    }
-
-    @Nullable
-    @Override
-    public VelocitySenderAdapter getSenderAdapter(String name) {
-        return server.getPlayer(name).map(player -> new VelocitySenderAdapter(this, player)).orElse(null);
-    }
-
-    @Override
-    public boolean isHooked(String name) {
-        // TODO Future implementation
-        return false;
-    }
-
-    @Override
-    public File getRootDirectory() {
-        return getDataFolder();
-    }
-
-    @Override
-    public String getPlatformVersion() {
-        return getProxy().getVersion().getVersion();
-    }
-
-    @Override
-    public String getPluginVersion() {
-        return getPlugin().map(plugin -> plugin.getDescription().getVersion().orElse("!blank")).orElse("!plugin not found");
-    }
-
-    public Optional<PluginContainer> getPlugin() {
-        return this.server.getPluginManager().getPlugin("auxprotect");
-    }
-
-    @Override
-    public APPlayerVelocity getAPPlayer(SenderAdapter<?, ?> sender) {
-        if (!(sender.getSender() instanceof Player player)) return null;
-        synchronized (apPlayers) {
-            return apPlayers.compute(sender.getUniqueId(), (k, apPlayer) -> {
-                // Ensures the APPlayer's Player instance is the most recent
-                if (apPlayer != null && apPlayer.getPlayer().isActive()) {
-                    return apPlayer;
-                }
-                return new APPlayerVelocity(this, player);
-            });
-        }
-    }
-
-    public void removeOfflineAPPlayers(UUID uuid) {
-        synchronized (apPlayers) {
-            apPlayers.remove(uuid);
-            apPlayers.values().removeIf(apPlayer -> !apPlayer.getPlayer().isActive());
-        }
-    }
-
-    @Override
-    public int queueSize() {
-        return dbRunnable.queueSize();
-    }
-
-    @Override
-    public Set<String> listPlayers() {
-        return server.getAllPlayers().stream().map(Player::getUsername).collect(Collectors.toUnmodifiableSet());
-    }
-
-    @Override
-    public boolean isEnabled() {
-        return enabled;
-    }
-
-    @Override
-    public void addRemoveEntryListener(Consumer<DbEntry> consumer, boolean add) {
-        dbRunnable.addRemoveEntryListener(consumer, add);
-    }
-
-    @Override
-    public void broadcast(String msg, APPermission node) {
-        server.getAllPlayers().stream().filter(player -> player.hasPermission(node.node)).forEach(player -> player.sendMessage(Component.text(msg)));
-    }
-
-    @Override
-    public boolean doesWorldExist(String world) {
-        return false;
-    }
-
-    @Override
-    public Set<String> getWorlds() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean isPrimaryThread() {
-        return false;
-    }
-
-    @Override
-    public MessageBuilder getMessageBuilder() {
-        return new VelocityMessageBuilder();
-    }
-
-    @Override
-    public Set<String> getEntityTypes() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public Set<String> getItemTypes() {
-        throw new UnsupportedOperationException();
-    }
-
-    public String formatMoney(double d) {
-        if (!Double.isFinite(d) || Double.isNaN(d)) {
-            return "$NaN";
-        }
-        if (Math.abs(d) <= 1E-6) {
-            return "$0";
-        }
-
-        return "$" + (Math.round(d * 100) / 100.0);
-    }
-
-    public ProxyServer getProxy() {
-        return server;
-    }
-
-    public static String toString(Component component) {
-        return PlainTextComponentSerializer.plainText().serialize(component);
-    }
-
-    @Override
-    public boolean isPrivate() {
-        return false;
-    }
+  @Override
+  public boolean isPrivate() {
+    return false;
+  }
 }
