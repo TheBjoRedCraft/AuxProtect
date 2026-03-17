@@ -1,5 +1,7 @@
 package dev.heliosares.auxprotect.paper.commands;
 
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import dev.heliosares.auxprotect.AuxProtectPaper;
 import dev.heliosares.auxprotect.adapters.sender.SpigotSenderAdapter;
 import dev.heliosares.auxprotect.core.APPermission;
@@ -17,13 +19,12 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
-public class ClaimInvCommand implements CommandExecutor {
+public class ClaimInvCommand implements com.mojang.brigadier.Command<Player> {
 
   private final AuxProtectPaper plugin;
 
@@ -120,5 +121,10 @@ public class ClaimInvCommand implements CommandExecutor {
       }
     });
     return true;
+  }
+
+  @Override
+  public int run(CommandContext<Player> commandContext) throws CommandSyntaxException {
+
   }
 }

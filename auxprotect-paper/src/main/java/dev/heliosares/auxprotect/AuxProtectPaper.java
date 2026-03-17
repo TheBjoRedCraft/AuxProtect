@@ -280,6 +280,7 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
     Objects.requireNonNull(this.getCommand("auxprotect")).setTabCompleter(apcommand);
 
     AuxProtectPaper.getMorePaperLib().scheduling().globalRegionalScheduler().run(() -> {
+
       checkcommand("auxprotect");
       checkcommand(getCommandAlias());
       checkcommand("claiminv");
