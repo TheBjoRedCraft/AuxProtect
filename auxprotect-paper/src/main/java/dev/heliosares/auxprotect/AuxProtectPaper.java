@@ -52,7 +52,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.locks.ReentrantLock;
@@ -71,7 +70,6 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.Container;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
@@ -273,11 +271,10 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
       EntryAction.CRATEREWARD.setEnabled(false);
     }
 
-    Objects.requireNonNull(this.getCommand("claiminv"))
-        .setExecutor(claiminvcommand = new ClaimInvCommand(this));
-    Objects.requireNonNull(this.getCommand("auxprotect"))
-        .setExecutor((apcommand = createAPSCommand()));
-    Objects.requireNonNull(this.getCommand("auxprotect")).setTabCompleter(apcommand);
+    claiminvcommand = new ClaimInvCommand(this);
+    apcommand = createAPSCommand();
+    Bukkit.getCommandMap().register(getName(), claiminvcommand);
+    Bukkit.getCommandMap().register(getName(), apcommand);
 
     AuxProtectPaper.getMorePaperLib().scheduling().globalRegionalScheduler().run(() -> {
       checkcommand("auxprotect");
@@ -754,19 +751,18 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
   }
 
   private void checkcommand(String commandlbl) {
-    PluginCommand command = getCommand(commandlbl);
-    if (command == null || !command.getPlugin().equals(AuxProtectPaper.this)) {
+    org.bukkit.command.Command command = getServer().getCommandMap().getCommand(commandlbl);
+    if (command == null || (command != apcommand && command != claiminvcommand)) {
       String output = "Command '" + commandlbl + "' taken by ";
       if (command == null) {
         output += "an unknown plugin.";
       } else {
-        output += command.getPlugin().getName() + ".";
+        output += "another plugin.";
       }
       warning(output);
       if (config.isOverrideCommands()) {
-        warning("Attempting to re-register tab completer.");
-        Objects.requireNonNull(getCommand("auxprotect")).setTabCompleter(apcommand);
-        Objects.requireNonNull(getCommand(getCommandAlias())).setTabCompleter(apcommand);
+        warning("Attempting to re-register commands.");
+        Bukkit.getCommandMap().register(getName(), apcommand);
       } else {
         warning("If this is causing issues, try enabling 'OverrideCommands' in the config.");
       }
