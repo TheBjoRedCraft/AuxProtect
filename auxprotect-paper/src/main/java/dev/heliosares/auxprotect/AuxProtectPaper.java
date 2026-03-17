@@ -21,7 +21,6 @@ import dev.heliosares.auxprotect.paper.Telemetry;
 import dev.heliosares.auxprotect.paper.commands.ClaimInvCommand;
 import dev.heliosares.auxprotect.paper.listeners.AuctionHouseListener;
 import dev.heliosares.auxprotect.paper.listeners.ChestShopListener;
-import dev.heliosares.auxprotect.paper.listeners.CommandListener;
 import dev.heliosares.auxprotect.paper.listeners.EconomyShopGUIListener;
 import dev.heliosares.auxprotect.paper.listeners.EntityListener;
 import dev.heliosares.auxprotect.paper.listeners.EssentialsListener;
@@ -234,7 +233,6 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
     getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
     getServer().getPluginManager().registerEvents(new PaneListener(this), this);
     getServer().getPluginManager().registerEvents(new WorldListener(this), this);
-    getServer().getPluginManager().registerEvents(new CommandListener(this), this);
 
     // this feels cursed to run setupEconomy() like this...
     Telemetry.reportHook(this, "Vault", setupEconomy());
