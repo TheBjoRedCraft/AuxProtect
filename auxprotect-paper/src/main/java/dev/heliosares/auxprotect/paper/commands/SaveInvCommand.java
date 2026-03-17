@@ -1,4 +1,4 @@
-package dev.heliosares.auxprotect.spigot.commands;
+package dev.heliosares.auxprotect.paper.commands;
 
 import dev.heliosares.auxprotect.adapters.sender.SenderAdapter;
 import dev.heliosares.auxprotect.core.APPermission;
@@ -8,13 +8,12 @@ import dev.heliosares.auxprotect.core.Language;
 import dev.heliosares.auxprotect.core.PlatformType;
 import dev.heliosares.auxprotect.exceptions.CommandException;
 import dev.heliosares.auxprotect.exceptions.SyntaxException;
-import dev.heliosares.auxprotect.spigot.APPlayerSpigot;
-import dev.heliosares.auxprotect.spigot.AuxProtectPaper;
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
-
+import dev.heliosares.auxprotect.paper.APPlayerSpigot;
+import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import java.util.ArrayList;
 import java.util.List;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 
 public class SaveInvCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S, P>> extends
     Command<S, P, SA> {

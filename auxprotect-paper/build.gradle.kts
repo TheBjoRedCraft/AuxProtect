@@ -102,7 +102,9 @@ dependencies {
     compileOnly("com.github.Zrips:Jobs:4.17.2") {
         isTransitive = false
     }
-    compileOnly("net.essentialsx:EssentialsX:2.20.1")
+    compileOnly("net.essentialsx:EssentialsX:2.20.1") {
+        isTransitive = false
+    }
     compileOnly("com.palmergames.bukkit.towny:towny:0.101.2.0")
 
     compileOnly("com.github.Heliosares:AuctionHouseAPI:756e099dff")

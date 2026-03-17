@@ -1,10 +1,9 @@
 package dev.heliosares.auxprotect.database;
 
-import dev.heliosares.auxprotect.spigot.AuxProtectPaper;
+import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import dev.heliosares.auxprotect.towny.TownyEntry;
 import dev.heliosares.auxprotect.towny.TownyManager;
 import dev.kshl.kshlib.exceptions.BusyException;
-
 import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;

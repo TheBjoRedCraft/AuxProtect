@@ -1,4 +1,4 @@
-package dev.heliosares.auxprotect.spigot;
+package dev.heliosares.auxprotect.paper;
 
 import dev.heliosares.auxprotect.adapters.sender.SpigotSenderAdapter;
 import dev.heliosares.auxprotect.core.APPlayer;

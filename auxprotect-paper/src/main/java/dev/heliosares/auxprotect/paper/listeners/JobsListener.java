@@ -1,4 +1,4 @@
-package dev.heliosares.auxprotect.spigot.listeners;
+package dev.heliosares.auxprotect.paper.listeners;
 
 import com.gamingmesh.jobs.api.JobsExpGainEvent;
 import com.gamingmesh.jobs.api.JobsPrePaymentEvent;
@@ -6,7 +6,7 @@ import com.gamingmesh.jobs.container.CurrencyType;
 import com.gamingmesh.jobs.container.Job;
 import dev.heliosares.auxprotect.database.EntryAction;
 import dev.heliosares.auxprotect.database.JobsEntry;
-import dev.heliosares.auxprotect.spigot.AuxProtectPaper;
+import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import org.bukkit.Location;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;

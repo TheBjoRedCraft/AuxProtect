@@ -1,7 +1,6 @@
-package dev.heliosares.auxprotect.spigot;
+package dev.heliosares.auxprotect.paper;
 
 import dev.heliosares.auxprotect.core.IAuxProtect;
-
 import java.util.HashMap;
 import java.util.Map.Entry;
 

@@ -1,17 +1,16 @@
-package dev.heliosares.auxprotect.spigot.listeners;
+package dev.heliosares.auxprotect.paper.listeners;
 
 import dev.heliosares.auxprotect.database.EntryAction;
 import dev.heliosares.auxprotect.database.SpigotDbEntry;
-import dev.heliosares.auxprotect.spigot.AuxProtectPaper;
+import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import dev.heliosares.auxprotect.utils.InvSerialization;
+import java.io.IOException;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
 import su.nightexpress.excellentcrates.api.event.CrateObtainRewardEvent;
 import su.nightexpress.excellentcrates.api.event.CrateOpenEvent;
 import su.nightexpress.excellentcrates.crate.reward.impl.ItemReward;
-
-import java.io.IOException;
 
 public class ExcellentCratesListener implements Listener {
 

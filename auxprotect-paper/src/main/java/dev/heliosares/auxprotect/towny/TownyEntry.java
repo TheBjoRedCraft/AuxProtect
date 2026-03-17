@@ -3,11 +3,10 @@ package dev.heliosares.auxprotect.towny;
 import dev.heliosares.auxprotect.database.EntryAction;
 import dev.heliosares.auxprotect.database.SQLManager;
 import dev.heliosares.auxprotect.database.SpigotDbEntry;
+import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import dev.kshl.kshlib.exceptions.BusyException;
-import dev.heliosares.auxprotect.spigot.AuxProtectPaper;
-import org.bukkit.Location;
-
 import java.sql.SQLException;
+import org.bukkit.Location;
 
 public class TownyEntry extends SpigotDbEntry {
 

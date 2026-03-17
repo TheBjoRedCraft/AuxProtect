@@ -13,7 +13,7 @@ import dev.heliosares.auxprotect.database.SpigotDbEntry;
 import dev.heliosares.auxprotect.database.Table;
 import dev.heliosares.auxprotect.exceptions.LookupException;
 import dev.heliosares.auxprotect.exceptions.ParseException;
-import dev.heliosares.auxprotect.spigot.AuxProtectPaper;
+import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import dev.heliosares.auxprotect.utils.BidiMapCache;
 import dev.kshl.kshlib.exceptions.BusyException;
 import java.sql.SQLException;

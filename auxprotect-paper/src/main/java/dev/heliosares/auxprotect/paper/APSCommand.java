@@ -1,13 +1,13 @@
-package dev.heliosares.auxprotect.spigot;
+package dev.heliosares.auxprotect.paper;
 
 import dev.heliosares.auxprotect.adapters.sender.SpigotSenderAdapter;
 import dev.heliosares.auxprotect.core.commands.APCommand;
-import dev.heliosares.auxprotect.spigot.commands.InvCommand;
-import dev.heliosares.auxprotect.spigot.commands.InventoryCommand;
-import dev.heliosares.auxprotect.spigot.commands.MoneyCommand;
-import dev.heliosares.auxprotect.spigot.commands.SaveInvCommand;
-import dev.heliosares.auxprotect.spigot.commands.SpigotLookupCommand;
-import dev.heliosares.auxprotect.spigot.commands.TpCommand;
+import dev.heliosares.auxprotect.paper.commands.InvCommand;
+import dev.heliosares.auxprotect.paper.commands.InventoryCommand;
+import dev.heliosares.auxprotect.paper.commands.MoneyCommand;
+import dev.heliosares.auxprotect.paper.commands.SaveInvCommand;
+import dev.heliosares.auxprotect.paper.commands.SpigotLookupCommand;
+import dev.heliosares.auxprotect.paper.commands.TpCommand;
 import java.util.List;
 import javax.annotation.Nonnull;
 import org.bukkit.command.Command;

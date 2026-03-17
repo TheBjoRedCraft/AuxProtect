@@ -1,6 +1,6 @@
-package dev.heliosares.auxprotect.spigot.listeners;
+package dev.heliosares.auxprotect.paper.listeners;
 
-import dev.heliosares.auxprotect.spigot.AuxProtectPaper;
+import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;

@@ -1,11 +1,11 @@
-package dev.heliosares.auxprotect.spigot.listeners;
+package dev.heliosares.auxprotect.paper.listeners;
 
 import com.olziedev.playerauctions.api.events.auction.PlayerAuctionBuyEvent;
 import com.olziedev.playerauctions.api.events.auction.PlayerAuctionSellEvent;
 import dev.heliosares.auxprotect.database.DbEntry;
 import dev.heliosares.auxprotect.database.EntryAction;
 import dev.heliosares.auxprotect.database.SingleItemEntry;
-import dev.heliosares.auxprotect.spigot.AuxProtectPaper;
+import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;

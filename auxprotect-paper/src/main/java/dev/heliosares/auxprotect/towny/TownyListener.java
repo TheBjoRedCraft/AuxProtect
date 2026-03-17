@@ -24,15 +24,14 @@ import com.palmergames.bukkit.towny.object.Government;
 import com.palmergames.bukkit.towny.object.Resident;
 import com.palmergames.bukkit.towny.object.WorldCoord;
 import dev.heliosares.auxprotect.database.EntryAction;
+import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import dev.kshl.kshlib.exceptions.BusyException;
-import dev.heliosares.auxprotect.spigot.AuxProtectPaper;
+import java.sql.SQLException;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-
-import java.sql.SQLException;
 
 public class TownyListener implements Listener {
 

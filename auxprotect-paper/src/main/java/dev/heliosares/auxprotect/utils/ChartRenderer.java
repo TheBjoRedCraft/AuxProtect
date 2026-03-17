@@ -1,6 +1,6 @@
 package dev.heliosares.auxprotect.utils;
 
-import dev.heliosares.auxprotect.spigot.AuxProtectPaper;
+import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import java.awt.Color;
 import java.util.Arrays;
 import javax.annotation.Nonnull;
@@ -152,7 +152,7 @@ public class ChartRenderer extends MapRenderer {
     return i;
   }
 
-  @SuppressWarnings("deprecation")
+  @SuppressWarnings({"deprecation", "removal"})
   void setPixelColor(MapCanvas canvas, int x, int y, Color color) {
     if (color == null) {
       color = bgColor;

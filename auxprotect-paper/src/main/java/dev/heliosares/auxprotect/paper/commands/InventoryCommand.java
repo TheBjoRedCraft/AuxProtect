@@ -1,29 +1,28 @@
-package dev.heliosares.auxprotect.spigot.commands;
+package dev.heliosares.auxprotect.paper.commands;
 
 import dev.heliosares.auxprotect.adapters.sender.SenderAdapter;
 import dev.heliosares.auxprotect.core.APPermission;
 import dev.heliosares.auxprotect.core.Command;
+import dev.heliosares.auxprotect.core.IAuxProtect;
 import dev.heliosares.auxprotect.core.Language;
 import dev.heliosares.auxprotect.core.PlatformType;
 import dev.heliosares.auxprotect.core.commands.APCommand;
-import dev.heliosares.auxprotect.core.IAuxProtect;
 import dev.heliosares.auxprotect.database.EntryAction;
 import dev.heliosares.auxprotect.database.InvDiffManager.DiffInventoryRecord;
-import dev.kshl.kshlib.exceptions.BusyException;
 import dev.heliosares.auxprotect.exceptions.CommandException;
 import dev.heliosares.auxprotect.exceptions.NotPlayerException;
 import dev.heliosares.auxprotect.exceptions.PlatformException;
 import dev.heliosares.auxprotect.exceptions.SyntaxException;
-import dev.heliosares.auxprotect.spigot.AuxProtectPaper;
+import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import dev.heliosares.auxprotect.utils.TimeUtil;
+import dev.kshl.kshlib.exceptions.BusyException;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
-
-import java.sql.SQLException;
-import java.util.List;
-import java.util.UUID;
 
 public class InventoryCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S, P>> extends
     Command<S, P, SA> {

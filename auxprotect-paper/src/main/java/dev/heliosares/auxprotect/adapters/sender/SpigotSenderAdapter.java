@@ -3,7 +3,7 @@ package dev.heliosares.auxprotect.adapters.sender;
 import dev.heliosares.auxprotect.adapters.location.LocationAdapter;
 import dev.heliosares.auxprotect.adapters.location.SpigotLocationAdapter;
 import dev.heliosares.auxprotect.exceptions.NotPlayerException;
-import dev.heliosares.auxprotect.spigot.AuxProtectPaper;
+import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.md_5.bungee.api.chat.BaseComponent;

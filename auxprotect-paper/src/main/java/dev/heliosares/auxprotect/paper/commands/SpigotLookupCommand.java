@@ -1,4 +1,4 @@
-package dev.heliosares.auxprotect.spigot.commands;
+package dev.heliosares.auxprotect.paper.commands;
 
 import dev.heliosares.auxprotect.adapters.sender.SpigotSenderAdapter;
 import dev.heliosares.auxprotect.core.Language;
@@ -6,15 +6,14 @@ import dev.heliosares.auxprotect.core.Parameters;
 import dev.heliosares.auxprotect.core.commands.LookupCommand;
 import dev.heliosares.auxprotect.database.DbEntry;
 import dev.heliosares.auxprotect.database.TransactionEntry;
-import dev.kshl.kshlib.exceptions.BusyException;
 import dev.heliosares.auxprotect.exceptions.LookupException;
-import dev.heliosares.auxprotect.spigot.AuxProtectPaper;
+import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import dev.heliosares.auxprotect.utils.MoneySolver;
-import org.bukkit.command.CommandSender;
-
+import dev.kshl.kshlib.exceptions.BusyException;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Set;
+import org.bukkit.command.CommandSender;
 
 public class SpigotLookupCommand extends
     LookupCommand<CommandSender, AuxProtectPaper, SpigotSenderAdapter> {

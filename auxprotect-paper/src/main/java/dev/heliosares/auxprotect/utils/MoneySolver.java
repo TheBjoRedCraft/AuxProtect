@@ -4,13 +4,8 @@ import dev.heliosares.auxprotect.core.IAuxProtect;
 import dev.heliosares.auxprotect.core.Language;
 import dev.heliosares.auxprotect.database.DbEntry;
 import dev.heliosares.auxprotect.database.EntryAction;
-import dev.heliosares.auxprotect.spigot.AuxProtectPaper;
-import org.bukkit.entity.Player;
-import org.bukkit.map.MapCanvas;
-import org.bukkit.map.MapView;
-import org.bukkit.map.MinecraftFont;
-
-import java.awt.*;
+import dev.heliosares.auxprotect.paper.AuxProtectPaper;
+import java.awt.Color;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -19,6 +14,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.bukkit.entity.Player;
+import org.bukkit.map.MapCanvas;
+import org.bukkit.map.MapView;
+import org.bukkit.map.MinecraftFont;
 
 public class MoneySolver extends ChartRenderer {
 
@@ -48,9 +47,9 @@ public class MoneySolver extends ChartRenderer {
     for (int i = 0; i < 100; i++) {
       for (int resultsIndex = 0; ; resultsIndex++) {
         int index = results.size() - 1 - resultsIndex;
-          if (index < 0) {
-              break;
-          }
+        if (index < 0) {
+          break;
+        }
         DbEntry result = results.get(index);
         if (!result.getAction().equals(EntryAction.MONEY)) {
           continue;
@@ -99,13 +98,13 @@ public class MoneySolver extends ChartRenderer {
     double d1 = Math.pow(10, Math.floor(Math.log10(Math.abs(value))) - (nSigDig - 1));
     double intermediate = value / d1;
 
-      if (dir > 0) {
-          intermediate = Math.ceil(intermediate);
-      } else if (dir < 0) {
-          intermediate = Math.floor(intermediate);
-      } else {
-          intermediate = Math.round(intermediate);
-      }
+    if (dir > 0) {
+      intermediate = Math.ceil(intermediate);
+    } else if (dir < 0) {
+      intermediate = Math.floor(intermediate);
+    } else {
+      intermediate = Math.round(intermediate);
+    }
 
     return (intermediate * d1);
 
