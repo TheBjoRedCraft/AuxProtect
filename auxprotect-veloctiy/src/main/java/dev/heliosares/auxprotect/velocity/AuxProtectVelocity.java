@@ -10,8 +10,6 @@ import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ConsoleCommandSource;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
-import dev.heliosares.auxprotect.adapters.message.MessageBuilder;
-import dev.heliosares.auxprotect.adapters.message.VelocityMessageBuilder;
 import dev.heliosares.auxprotect.adapters.sender.SenderAdapter;
 import dev.heliosares.auxprotect.adapters.sender.VelocitySenderAdapter;
 import dev.heliosares.auxprotect.api.AuxProtectAPI;
@@ -418,11 +416,6 @@ public final class AuxProtectVelocity implements IAuxProtect {
   @Override
   public boolean isPrimaryThread() {
     return false;
-  }
-
-  @Override
-  public MessageBuilder getMessageBuilder() {
-    return new VelocityMessageBuilder();
   }
 
   @Override
