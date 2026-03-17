@@ -53,6 +53,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
 @Plugin(id = "auxprotect", name = "AuxProtect", version = "1.3.4-pre6", url = "https://github.com/ks-hl/AuxProtect")
+// TODO: Dynamic Version
 public final class AuxProtectVelocity implements IAuxProtect {
 
   private static final DateTimeFormatter ERROR_TIME_FORMAT = DateTimeFormatter.ofPattern(
@@ -180,9 +181,9 @@ public final class AuxProtectVelocity implements IAuxProtect {
     runAsync(() -> {
       try {
         sqlManager.init();
-          if (!config.isSkipRowCount()) {
-              sqlManager.count();
-          }
+        if (!config.isSkipRowCount()) {
+          sqlManager.count();
+        }
       } catch (Exception e) {
         print(e);
         getLogger().severe("Failed to connect to SQL database. Disabling.");
@@ -356,9 +357,9 @@ public final class AuxProtectVelocity implements IAuxProtect {
 
   @Override
   public APPlayerVelocity getAPPlayer(SenderAdapter<?, ?> sender) {
-      if (!(sender.getSender() instanceof Player player)) {
-          return null;
-      }
+    if (!(sender.getSender() instanceof Player player)) {
+      return null;
+    }
     synchronized (apPlayers) {
       return apPlayers.compute(sender.getUniqueId(), (k, apPlayer) -> {
         // Ensures the APPlayer's Player instance is the most recent
