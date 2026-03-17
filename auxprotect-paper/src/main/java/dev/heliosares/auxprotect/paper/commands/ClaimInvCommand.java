@@ -9,31 +9,32 @@ import dev.heliosares.auxprotect.utils.InvSerialization;
 import dev.heliosares.auxprotect.utils.Pane;
 import dev.heliosares.auxprotect.utils.Pane.Type;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.UUID;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
-public class ClaimInvCommand implements CommandExecutor {
+public class ClaimInvCommand extends Command {
 
   private final AuxProtectPaper plugin;
 
   public ClaimInvCommand(AuxProtectPaper plugin) {
+    super("claiminv", "Claim pending inventory", "/claiminv", Collections.emptyList());
     this.plugin = plugin;
   }
 
   @Override
-  public boolean onCommand(@Nonnull CommandSender sender, @Nullable Command command,
-      @Nonnull String label, @Nonnull String[] args) {
+  public boolean execute(@Nonnull CommandSender sender, @Nonnull String label,
+      @Nonnull String[] args) {
     plugin.runAsync(() -> {
       int uid;
       boolean other;
