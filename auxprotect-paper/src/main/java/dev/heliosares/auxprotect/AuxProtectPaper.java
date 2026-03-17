@@ -46,6 +46,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -91,6 +92,7 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
   @Getter
   private static AuxProtectPaper instance;
   private static SpigotSQLManager sqlManager;
+  @Getter
   private static MorePaperLib morePaperLib;
   final Set<Integer> stackHashHistory = new HashSet<>();
   private final APConfig config = new APConfig();
@@ -134,10 +136,6 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
       return o.toString().toLowerCase();
     }
     return "#null";
-  }
-
-  public static MorePaperLib getMorePaperLib() {
-    return morePaperLib;
   }
 
   public int getCompatabilityVersion() {
@@ -232,7 +230,8 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
     getServer().getScheduler().runTaskAsynchronously(this, this::initDatabase);
 
     dbRunnable = new SpigotDatabaseRunnable(this, sqlManager);
-    getServer().getScheduler().runTaskTimerAsynchronously(this, dbRunnable, 60, 5);
+    AuxProtectPaper.getMorePaperLib().scheduling().asyncScheduler()
+        .runAtFixedRate(dbRunnable, Duration.ofSeconds(3), Duration.ofMillis(300));
 
     getServer().getPluginManager().registerEvents(new ProjectileListener(this), this);
     getServer().getPluginManager().registerEvents(new EntityListener(this), this);
@@ -283,36 +282,11 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
         .setExecutor((apcommand = createAPSCommand()));
     Objects.requireNonNull(this.getCommand("auxprotect")).setTabCompleter(apcommand);
 
-    new BukkitRunnable() {
-
-      @Override
-      public void run() {
-        checkcommand("auxprotect");
-        checkcommand(getCommandAlias());
-        checkcommand("claiminv");
-      }
-
-      private void checkcommand(String commandlbl) {
-        PluginCommand command = getCommand(commandlbl);
-        if (command == null || !command.getPlugin().equals(AuxProtectPaper.this)) {
-          String output = "Command '" + commandlbl + "' taken by ";
-          if (command == null) {
-            output += "an unknown plugin.";
-          } else {
-            output += command.getPlugin().getName() + ".";
-          }
-          warning(output);
-          if (config.isOverrideCommands()) {
-            warning("Attempting to re-register tab completer.");
-            Objects.requireNonNull(getCommand("auxprotect")).setTabCompleter(apcommand);
-            Objects.requireNonNull(getCommand(getCommandAlias())).setTabCompleter(apcommand);
-          } else {
-            warning("If this is causing issues, try enabling 'OverrideCommands' in the config.");
-          }
-
-        }
-      }
-    }.runTaskLater(this, 60);
+    AuxProtectPaper.getMorePaperLib().scheduling().globalRegionalScheduler().runDelayed(() -> {
+      checkcommand("auxprotect");
+      checkcommand(getCommandAlias());
+      checkcommand("claiminv");
+    }, 60L);
 
     if (!isPrivate()) {
       EntryAction.ALERT.setEnabled(false);
@@ -483,38 +457,39 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
   }
 
   protected void initDatabase() {
-    try {
-      sqlManager.init();
-      if (!config.isSkipRowCount()) {
-        sqlManager.count();
+    getMorePaperLib().scheduling().asyncScheduler().run(() -> {
+      try {
+        sqlManager.init();
+        if (!config.isSkipRowCount()) {
+          sqlManager.count();
+        }
+      } catch (Exception e) {
+        print(e);
+        getLogger().severe("Failed to connect to SQL database. Disabling.");
+        setEnabled(false);
+        return;
       }
-    } catch (Exception e) {
-      print(e);
-      getLogger().severe("Failed to connect to SQL database. Disabling.");
-      setEnabled(false);
-      return;
-    }
 
-    long lastloaded = 0;
-    try {
-      lastloaded = sqlManager.getLast(SQLManager.LastKeys.TELEMETRY);
-    } catch (SQLException | BusyException ignored) {
-    }
-    long delay = 15 * 20;
-    if (System.currentTimeMillis() - lastloaded > 1000 * 60 * 60) {
-      debug(
-          "Initializing telemetry. THIS MESSAGE WILL DISPLAY REGARDLESS OF WHETHER BSTATS CONFIG IS ENABLED. THIS DOES NOT INHERENTLY MEAN ITS ENABLED",
-          3);
-    } else {
-      debug(
-          "Delaying telemetry initialization to avoid rate-limiting. THIS MESSAGE WILL DISPLAY REGARDLESS OF WHETHER BSTATS CONFIG IS ENABLED. THIS DOES NOT INHERENTLY MEAN ITS ENABLED",
-          3);
-      delay = (1000 * 60 * 60 - (System.currentTimeMillis() - lastloaded)) / 50;
-    }
+      long lastloaded = 0;
+      try {
+        lastloaded = sqlManager.getLast(SQLManager.LastKeys.TELEMETRY);
+      } catch (SQLException | BusyException ignored) {
+      }
+      long delay = 15 * 20;
+      if (System.currentTimeMillis() - lastloaded > 1000 * 60 * 60) {
+        debug(
+            "Initializing telemetry. THIS MESSAGE WILL DISPLAY REGARDLESS OF WHETHER BSTATS CONFIG IS ENABLED. THIS DOES NOT INHERENTLY MEAN ITS ENABLED",
+            3);
+      } else {
+        debug(
+            "Delaying telemetry initialization to avoid rate-limiting. THIS MESSAGE WILL DISPLAY REGARDLESS OF WHETHER BSTATS CONFIG IS ENABLED. THIS DOES NOT INHERENTLY MEAN ITS ENABLED",
+            3);
+        delay = (1000 * 60 * 60 - (System.currentTimeMillis() - lastloaded)) / 50;
+      }
 
-    getServer().getScheduler().runTaskLater(
-        AuxProtectPaper.this, () -> Telemetry.init(AuxProtectPaper.this, 14232), delay);
-
+      AuxProtectPaper.getMorePaperLib().scheduling().globalRegionalScheduler()
+          .runDelayed(() -> Telemetry.init(AuxProtectPaper.this, 14232), delay);
+    });
   }
 
   private boolean hook(Supplier<Listener> listener, String... names) {
@@ -819,4 +794,25 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
     return getSqlManager().getTownyManager();
   }
 
+  private void checkcommand(String commandlbl) {
+    PluginCommand command = getCommand(commandlbl);
+    if (command == null || !command.getPlugin().equals(AuxProtectPaper.this)) {
+      String output = "Command '" + commandlbl + "' taken by ";
+      if (command == null) {
+        output += "an unknown plugin.";
+      } else {
+        output += command.getPlugin().getName() + ".";
+      }
+      warning(output);
+      if (config.isOverrideCommands()) {
+        warning("Attempting to re-register tab completer.");
+        Objects.requireNonNull(getCommand("auxprotect")).setTabCompleter(apcommand);
+        Objects.requireNonNull(getCommand(getCommandAlias())).setTabCompleter(apcommand);
+      } else {
+        warning("If this is causing issues, try enabling 'OverrideCommands' in the config.");
+      }
+
+    }
+  }
 }
+
