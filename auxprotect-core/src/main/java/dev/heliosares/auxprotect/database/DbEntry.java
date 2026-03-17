@@ -1,356 +1,311 @@
 package dev.heliosares.auxprotect.database;
 
-import dev.heliosares.auxprotect.adapters.message.ClickEvent;
-import dev.heliosares.auxprotect.adapters.message.GenericBuilder;
-import dev.heliosares.auxprotect.adapters.message.GenericTextColor;
-import dev.heliosares.auxprotect.adapters.message.HoverEvent;
 import dev.heliosares.auxprotect.adapters.sender.SenderAdapter;
 import dev.heliosares.auxprotect.api.AuxProtectAPI;
 import dev.heliosares.auxprotect.core.APPermission;
-import dev.heliosares.auxprotect.core.ActivityRecord;
-import dev.heliosares.auxprotect.core.IAuxProtect;
 import dev.heliosares.auxprotect.core.Language;
-import dev.kshl.kshlib.exceptions.BusyException;
 import dev.heliosares.auxprotect.utils.TimeUtil;
+import dev.kshl.kshlib.exceptions.BusyException;
+import java.sql.SQLException;
+import java.util.TimeZone;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.sql.SQLException;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.util.TimeZone;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
+import net.kyori.adventure.text.format.NamedTextColor;
 
 public class DbEntry {
 
-    protected SQLManager getSql() {
-        return sql;
+  @Getter
+  protected final String world;
+  @Getter
+  protected final int x, y, z, pitch, yaw;
+  @Getter
+  protected final EntryAction action;
+  protected final boolean state;
+  @Getter
+  private final long snowflake;
+  protected SQLManager sql;
+  @Setter
+  @Getter
+  protected String data;
+  protected String userLabel;
+  protected String user;
+  protected int uid;
+  protected String targetLabel;
+  protected String target;
+  protected int target_id;
+  private long blobid = -1;
+  @Setter
+  private byte[] blob;
+
+  DbEntry(String userLabel, EntryAction action, boolean state, String world, int x, int y, int z,
+      int pitch,
+      int yaw, String targetLabel, String data, SQLManager sql) {
+    this.snowflake = Snowflake.getNextSnowflake();
+    this.userLabel = userLabel;
+    this.action = action;
+    this.state = state;
+    this.world = world;
+    this.x = x;
+    this.y = y;
+    this.z = z;
+    this.pitch = pitch;
+    this.yaw = yaw;
+    this.targetLabel = targetLabel;
+    this.data = data;
+    this.sql = sql;
+  }
+
+  public DbEntry(String userLabel, EntryAction action, boolean state, String targetLabel,
+      String data) {
+    this(userLabel, action, state, null, 0, 0, 0, 0, 0, targetLabel, data,
+        SQLManager.getInstance());
+  }
+
+  protected DbEntry(long snowflake, int uid, EntryAction action, boolean state, String world, int x,
+      int y, int z,
+      int pitch, int yaw, String target, int target_id, String data, SQLManager sql) {
+    this.snowflake = snowflake;
+    this.uid = uid;
+    this.action = action;
+    this.state = state;
+    this.world = world;
+    this.x = x;
+    this.y = y;
+    this.z = z;
+    this.pitch = pitch;
+    this.yaw = yaw;
+    this.targetLabel = target;
+    this.target_id = target_id;
+    this.data = data;
+    this.sql = sql;
+  }
+
+  protected SQLManager getSql() {
+    return sql;
+  }
+
+  void setSql(SQLManager sql) {
+    this.sql = sql;
+  }
+
+  public void deResolveUIDs() {
+    uid = -1;
+    target_id = -1;
+  }
+
+  public long getTime() {
+    return snowflake / Snowflake.COUNTER_FACTOR;
+  }
+
+  public long getCounter() {
+    return snowflake % Snowflake.COUNTER_FACTOR;
+  }
+
+  public boolean getState() {
+    return state;
+  }
+
+  public int getUid() throws SQLException, BusyException {
+    if (uid > 0) {
+      return uid;
+    }
+    return uid = sql.getUserManager().getUID(getUserUUID(), true);
+  }
+
+  public String getUser() throws SQLException, BusyException {
+    return getUser(true);
+  }
+
+  public String getUser(boolean resolve) throws SQLException, BusyException {
+    if (user != null || !resolve) {
+      return user;
+    }
+    if (!getUserUUID().startsWith("$") || getUserUUID().length() != 37) {
+      return user = getUserUUID();
+    }
+    user = sql.getUserManager().getUsernameFromUID(getUid());
+    return user == null ? (user = getUserUUID()) : user;
+  }
+
+  public int getTargetId() throws SQLException, BusyException {
+    if (action.getTable().hasStringTarget()) {
+      return -1;
+    }
+    if (target_id > 0) {
+      return target_id;
+    }
+    return target_id = sql.getUserManager().getUID(getTargetUUID(), true);
+  }
+
+  public String getTarget() throws SQLException, BusyException {
+    return getTarget(true);
+  }
+
+  public String getTarget(boolean resolve) throws SQLException, BusyException {
+    if (target != null || !resolve) {
+      return target;
+    }
+    if (action.getTable().hasStringTarget() || !getTargetUUID().startsWith("$")
+        || getTargetUUID().length() != 37) {
+      return target = getTargetUUID();
+    }
+    target = sql.getUserManager().getUsernameFromUID(getTargetId());
+    return target == null ? (target = getTargetUUID()) : target;
+  }
+
+  public String getTargetUUID() throws SQLException, BusyException {
+    if (targetLabel != null) {
+      return targetLabel;
+    }
+    if (target_id > 0) {
+      targetLabel = sql.getUserManager().getUUIDFromUID(target_id);
+    } else if (target_id == 0) {
+      return targetLabel = "";
+    }
+    return targetLabel == null ? (targetLabel = "#null") : targetLabel;
+  }
+
+  public String getUserUUID() throws SQLException, BusyException {
+    if (userLabel != null) {
+      return userLabel;
+    }
+    if (uid > 0) {
+      userLabel = sql.getUserManager().getUUIDFromUID(uid);
+    } else if (uid == 0) {
+      return userLabel = "";
+    }
+    return userLabel == null ? (userLabel = "#null") : userLabel;
+  }
+
+  public double getDistance(DbEntry entry) {
+    return Math.sqrt(getDistanceSq(entry));
+  }
+
+  public double getDistanceSq(DbEntry entry) {
+    return Math.pow(getX() - entry.getX(), 2)
+        + Math.pow(getY() - entry.getY(), 2)
+        + Math.pow(getZ() - entry.getZ(), 2);
+  }
+
+  public byte[] getBlob() throws SQLException, BusyException {
+    if (blob == null) {
+      blob = sql.getBlob(this);
+    }
+    return blob;
+  }
+
+  public boolean hasBlob() {
+    return blob != null || blobid >= 0;
+  }
+
+  public long getBlobID() {
+    return blobid;
+  }
+
+  protected void setBlobID(long blobid) {
+    this.blobid = blobid;
+  }
+
+  public Component toComponent(SenderAdapter<?, ?> sender, String commandPrefix, int index,
+      TimeZone timeZone) throws SQLException, BusyException {
+    TextComponent.Builder builder = Component.text();
+
+    builder.append(Component.text(getUser(), NamedTextColor.BLUE))
+        .append(Component.text(" "))
+        .append(Component.text(getAction().getText(getState()), NamedTextColor.WHITE))
+        .append(Component.text(" "))
+        .append(Component.text(getTarget(), NamedTextColor.BLUE))
+        .append(Component.text(" "));
+
+    builder.append(timeComponent(timeZone));
+    builder.append(dataComponent(sender));
+    builder.append(buttonsComponent(sender, commandPrefix, index));
+    builder.append(coordinatesComponent(sender));
+
+    return builder.build();
+  }
+
+  public Component timeComponent(TimeZone timeZone) {
+    String msg = System.currentTimeMillis() - getTime() < 55
+        ? Language.L.RESULTS__TIME_NOW.translate()
+        : Language.L.RESULTS__TIME.translate(
+            TimeUtil.millisToString(System.currentTimeMillis() - getTime()));
+
+    return Component.text(msg, NamedTextColor.GRAY)
+        .hoverEvent(HoverEvent.showText(
+            Component.text(
+                    TimeUtil.format(getTime(), TimeUtil.entryTimeFormat, timeZone.toZoneId()))
+                .append(Component.newline())
+                .append(Component.text(Language.L.RESULTS__CLICK_TO_COPY_TIME.translate(getTime())))
+        ))
+        .clickEvent(ClickEvent.copyToClipboard(getTime() + "e"));
+  }
+
+  public Component dataComponent(SenderAdapter<?, ?> sender) {
+    String data = getData();
+    if (data == null || data.isEmpty()) {
+      return Component.empty();
     }
 
-    void setSql(SQLManager sql) {
-        this.sql = sql;
+    TextComponent.Builder builder = Component.text();
+
+    if (getAction().equals(EntryAction.SESSION)
+        && !APPermission.LOOKUP_ACTION.dot(EntryAction.SESSION.toString().toLowerCase()).dot("ip")
+        .hasPermission(sender)) {
+
+      builder.append(Component.text(" [REDACTED]", NamedTextColor.GRAY));
+      return builder.build();
     }
 
-    public void deResolveUIDs() {
-        uid = -1;
-        target_id = -1;
+    builder.append(Component.text(" [", NamedTextColor.GRAY))
+        .append(Component.text(data, NamedTextColor.GRAY)
+            .clickEvent(ClickEvent.copyToClipboard(data)))
+        .append(Component.text("]", NamedTextColor.GRAY));
+
+    return builder.build();
+  }
+
+  public Component buttonsComponent(SenderAdapter<?, ?> sender, String commandPrefix, int index)
+      throws SQLException, BusyException {
+    TextComponent.Builder builder = Component.text();
+
+    if (hasBlob() && APPermission.INV.hasPermission(sender)) {
+      builder.append(Component.text(" [" + Language.L.RESULTS__VIEW + "]", NamedTextColor.GREEN)
+          .clickEvent(ClickEvent.runCommand(String.format(commandPrefix + " inv %d", index))));
     }
 
-    protected SQLManager sql;
-    @Getter
-    protected final String world;
-    @Getter
-    protected final int x, y, z, pitch, yaw;
-    @Getter
-    protected final EntryAction action;
-    protected final boolean state;
-    @Getter
-    private final long snowflake;
-    @Setter
-    @Getter
-    protected String data;
-    protected String userLabel;
-    protected String user;
-    protected int uid;
+    if (getAction().equals(EntryAction.KILL)
+        && APPermission.INV.hasPermission(sender)
+        && !getTarget().startsWith("#")) {
 
-    protected String targetLabel;
-    protected String target;
-    protected int target_id;
-
-    private long blobid = -1;
-    @Setter
-    private byte[] blob;
-
-    DbEntry(String userLabel, EntryAction action, boolean state, String world, int x, int y, int z, int pitch,
-            int yaw, String targetLabel, String data, SQLManager sql) {
-        this.snowflake = Snowflake.getNextSnowflake();
-        this.userLabel = userLabel;
-        this.action = action;
-        this.state = state;
-        this.world = world;
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.pitch = pitch;
-        this.yaw = yaw;
-        this.targetLabel = targetLabel;
-        this.data = data;
-        this.sql = sql;
+      builder.append(Component.text(" [" + Language.L.RESULTS__VIEW_INV + "]", NamedTextColor.GREEN)
+          .clickEvent(ClickEvent.runCommand(
+              String.format(commandPrefix + " l u:%s a:inventory target:death time:%de+-20e",
+                  getTarget(), getTime())
+          )));
     }
 
-    /**
-     *
-     */
-    public DbEntry(String userLabel, EntryAction action, boolean state, String targetLabel, String data) {
-        this(userLabel, action, state, null, 0, 0, 0, 0, 0, targetLabel, data, SQLManager.getInstance());
+    return builder.build();
+  }
+
+  public Component coordinatesComponent(SenderAdapter<?, ?> sender) {
+    TextComponent.Builder builder = Component.text();
+
+    String tp = "/" + AuxProtectAPI.getInstance().getCommandPrefix() + " tp "
+        + String.format("%d.5 %d %d.5 %s", x, y, z, world);
+
+    builder.append(Component.newline())
+        .append(
+            Component.text(String.format("(x%d/y%d/z%d/%s)", x, y, z, world), NamedTextColor.GRAY));
+
+    if (sender == null || APPermission.TP.hasPermission(sender)) {
+      builder.clickEvent(ClickEvent.runCommand(tp));
     }
 
-    protected DbEntry(long snowflake, int uid, EntryAction action, boolean state, String world, int x, int y, int z,
-                      int pitch, int yaw, String target, int target_id, String data, SQLManager sql) {
-        this.snowflake = snowflake;
-        this.uid = uid;
-        this.action = action;
-        this.state = state;
-        this.world = world;
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.pitch = pitch;
-        this.yaw = yaw;
-        this.targetLabel = target;
-        this.target_id = target_id;
-        this.data = data;
-        this.sql = sql;
-    }
-
-    public long getTime() {
-        return snowflake / Snowflake.COUNTER_FACTOR;
-    }
-
-    public long getCounter() {
-        return snowflake % Snowflake.COUNTER_FACTOR;
-    }
-
-    public boolean getState() {
-        return state;
-    }
-
-    public int getUid() throws SQLException, BusyException {
-        if (uid > 0) {
-            return uid;
-        }
-        return uid = sql.getUserManager().getUID(getUserUUID(), true);
-    }
-
-    public String getUser() throws SQLException, BusyException {
-        return getUser(true);
-    }
-
-    public String getUser(boolean resolve) throws SQLException, BusyException {
-        if (user != null || !resolve) return user;
-
-        if (!getUserUUID().startsWith("$") || getUserUUID().length() != 37) {
-            return user = getUserUUID();
-        }
-        user = sql.getUserManager().getUsernameFromUID(getUid());
-        if (user == null) {
-            user = getUserUUID();
-        }
-        return user;
-    }
-
-    public int getTargetId() throws SQLException, BusyException {
-        if (action.getTable().hasStringTarget()) {
-            return -1;
-        }
-        if (target_id > 0) {
-            return target_id;
-        }
-        return target_id = sql.getUserManager().getUID(getTargetUUID(), true);
-    }
-
-    public String getTarget() throws SQLException, BusyException {
-        return getTarget(true);
-    }
-
-    public String getTarget(boolean resolve) throws SQLException, BusyException {
-        if (target != null || !resolve) return target;
-
-        if (action.getTable().hasStringTarget() || !getTargetUUID().startsWith("$") || getTargetUUID().length() != 37) {
-            return target = getTargetUUID();
-        }
-        target = sql.getUserManager().getUsernameFromUID(getTargetId());
-        if (target == null) {
-            target = getTargetUUID();
-        }
-        return target;
-    }
-
-    public String getTargetUUID() throws SQLException, BusyException {
-        if (targetLabel != null) {
-            return targetLabel;
-        }
-        if (target_id > 0) {
-            targetLabel = sql.getUserManager().getUUIDFromUID(target_id);
-        } else if (target_id == 0) {
-            return targetLabel = "";
-        }
-        if (targetLabel == null) {
-            targetLabel = "#null";
-        }
-        return targetLabel;
-    }
-
-    public String getUserUUID() throws SQLException, BusyException {
-        if (userLabel != null) {
-            return userLabel;
-        }
-        if (uid > 0) {
-            userLabel = sql.getUserManager().getUUIDFromUID(uid);
-        } else if (uid == 0) {
-            return userLabel = "";
-        }
-        if (userLabel == null) {
-            userLabel = "#null";
-        }
-        return userLabel;
-    }
-
-    public double getBoxDistance(DbEntry entry) {
-        if (!entry.getWorld().equals(getWorld())) {
-            return -1;
-        }
-        return Math.max(Math.max(Math.abs(entry.getX() - getX()), Math.abs(entry.getY() - getY())), Math.abs(entry.getZ() - getZ()));
-    }
-
-    public double getDistance(DbEntry entry) {
-        return Math.sqrt(getDistanceSq(entry));
-    }
-
-    public double getDistanceSq(DbEntry entry) {
-        return Math.pow(getX() - entry.getX(), 2) + Math.pow(getY() - entry.getY(), 2) + Math.pow(getZ() - entry.getZ(), 2);
-    }
-
-    public byte[] getBlob() throws SQLException, BusyException {
-        if (blob == null) blob = sql.getBlob(this);
-        return blob;
-    }
-
-    public boolean hasBlob() {
-        return blob != null || blobid >= 0;
-    }
-
-    public long getBlobID() {
-        return blobid;
-    }
-
-    protected void setBlobID(long blobid) {
-        this.blobid = blobid;
-    }
-
-    @Override
-    public String toString() {
-        String out;
-        try {
-            out = String.format("%s %s(%d) %s ", getUser(), getAction().getText(getState()),
-                    getAction().getId(getState()), getTarget());
-        } catch (SQLException | BusyException e) {
-            out = "ERROR ";
-        }
-        if (getData() != null && !getData().isEmpty()) {
-            String data = getData();
-            if (data.length() > 64) {
-                data = data.substring(0, 64) + "...";
-            }
-            out += "(" + data + ")";
-
-        }
-        return out;
-    }
-
-    public void appendTime(GenericBuilder message, TimeZone timeZone) {
-        String msg;
-        if (System.currentTimeMillis() - getTime() < 55) {
-            msg = Language.L.RESULTS__TIME_NOW.translate();
-        } else {
-            msg = Language.L.RESULTS__TIME.translate(TimeUtil.millisToString(System.currentTimeMillis() - getTime()));
-        }
-        message.append(msg).hover(TimeUtil.format(getTime(), TimeUtil.entryTimeFormat, timeZone.toZoneId())
-                        + "\n" + Language.L.RESULTS__CLICK_TO_COPY_TIME.translate(getTime()))
-                .click(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, getTime() + "e"));
-    }
-
-    public void appendUser(GenericBuilder message) throws SQLException, BusyException {
-        message.append(GenericTextColor.BLUE + getUser()).hover(Results.clickToCopyHoverEvent)
-                .click(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, getUser()));
-    }
-
-    public void appendAction(GenericBuilder message) {
-        message.append(GenericTextColor.WHITE + getAction().getText(getState()));
-    }
-
-    public void appendTarget(GenericBuilder message, IAuxProtect plugin) throws SQLException, BusyException {
-        message.append(getTarget(), false)
-                .color(GenericTextColor.BLUE)
-                .hover(Results.clickToCopyHoverEvent)
-                .click(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, getTarget()));
-    }
-
-    public void appendData(GenericBuilder message, IAuxProtect plugin, SenderAdapter<?, ?> sender) {
-        String data = getData();
-        if (data != null && !data.isEmpty()) {
-            HoverEvent hoverEvent = Results.clickToCopyHoverEvent;
-            if (getAction().equals(EntryAction.ACTIVITY)) {
-                try {
-                    ActivityRecord record = ActivityRecord.parse(data);
-                    if (record != null) {
-                        message.append(" " + GenericTextColor.GREEN + record.countScore());
-                        hoverEvent = HoverEvent.showText(Language.L.RESULTS__CLICK_TO_COPY.translate() + record.getHoverText());
-                    }
-                } catch (IllegalArgumentException ignored) {
-                }
-            }
-            if (getAction().equals(EntryAction.SESSION) && !APPermission.LOOKUP_ACTION.dot(EntryAction.SESSION.toString().toLowerCase()).dot("ip").hasPermission(sender)) {
-                message.append(" " + GenericTextColor.COLOR_CHAR + "8[" + GenericTextColor.COLOR_CHAR + "7" + Language.L.RESULTS__REDACTED.translate() + GenericTextColor.COLOR_CHAR + "8]");
-            } else {
-                message.append(" [").color(GenericTextColor.GRAY);
-                message.append(data, false)
-                        .color(GenericTextColor.GRAY)
-                        .hover(hoverEvent)
-                        .click(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, data));
-                message.append("]").color(GenericTextColor.GRAY);
-            }
-        }
-        if (getAction().equals(EntryAction.ACTIVITY)) {
-            message.append(" " + GenericTextColor.DARK_GRAY + "[" + GenericTextColor.GRAY + "Copy Minute Range" + GenericTextColor.DARK_GRAY + "]");
-            ZonedDateTime zonedDateTime = Instant.ofEpochMilli(getTime()).atZone(ZoneId.systemDefault());
-            ZonedDateTime start = zonedDateTime.withSecond(0).withNano(0);
-            ZonedDateTime end = start.plusMinutes(1).minusNanos(1000000);
-            message.event(Results.clickToCopyHoverEvent).event(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, start.toInstant().toEpochMilli() + "e-" + end.toInstant().toEpochMilli() + "e"));
-        }
-    }
-
-    public void appendButtons(GenericBuilder message, SenderAdapter<?, ?> sender, String commandPrefix, int index) throws SQLException, BusyException {
-        if (hasBlob()) {
-            if (APPermission.INV.hasPermission(sender)) {
-                message.append(" " + GenericTextColor.COLOR_CHAR + "a[" + Language.L.RESULTS__VIEW + "]")
-                        .click(new ClickEvent(ClickEvent.Action.RUN_COMMAND,
-                                String.format(commandPrefix + " inv %d", index)))
-                        .hover(Language.L.RESULTS__CLICK_TO_VIEW.translate());
-            }
-        }
-        if (getAction().equals(EntryAction.KILL)) {
-            if (APPermission.INV.hasPermission(sender) && !getTarget().startsWith("#")) {
-                message.append(" " + GenericTextColor.COLOR_CHAR + "a[" + Language.L.RESULTS__VIEW_INV + "]")
-                        .click(new ClickEvent(ClickEvent.Action.RUN_COMMAND,
-                                String.format(commandPrefix + " l u:%s a:inventory target:death time:%de+-20e",
-                                        getTarget(), getTime())))
-                        .hover(Language.L.RESULTS__CLICK_TO_VIEW.translate());
-            }
-        }
-    }
-
-    public void appendCoordinates(SenderAdapter<?, ?> senderAdapter, GenericBuilder message) {
-        String tpCommand = "/" + AuxProtectAPI.getInstance().getCommandPrefix() + " tp ";
-
-        tpCommand += String.format("%d.5 %d %d.5 ", getX(), getY(), getZ());
-
-        tpCommand += getWorld();
-        if (getAction().getTable().hasLook()) {
-            // TODO is this necessary since PosEntry overrides?
-            tpCommand += String.format(" %d %d", getPitch(), getYaw());
-        }
-        message.append("\n" + " ".repeat(17));
-        message.append(String.format(GenericTextColor.COLOR_CHAR + "7(x%d/y%d/z%d/%s)", getX(), getY(), getZ(), getWorld()));
-
-        if (senderAdapter == null || APPermission.TP.hasPermission(senderAdapter)) {
-            message.click(new ClickEvent(ClickEvent.Action.RUN_COMMAND, tpCommand))
-                    .hover(GenericTextColor.COLOR_CHAR + "7" + tpCommand);
-        }
-
-        if (getAction().getTable().hasLook()) {
-            // TODO is this necessary since PosEntry overrides?
-            message.append(String.format(GenericTextColor.COLOR_CHAR + "7 (p%s/y%d)", getPitch(), getYaw()));
-        }
-    }
+    return builder.build();
+  }
 }

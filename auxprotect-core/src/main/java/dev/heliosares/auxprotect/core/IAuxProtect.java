@@ -1,12 +1,9 @@
 package dev.heliosares.auxprotect.core;
 
-import dev.heliosares.auxprotect.adapters.message.GenericBuilder;
-import dev.heliosares.auxprotect.adapters.message.MessageBuilder;
 import dev.heliosares.auxprotect.adapters.sender.SenderAdapter;
 import dev.heliosares.auxprotect.database.DbEntry;
 import dev.heliosares.auxprotect.database.SQLManager;
 import jakarta.annotation.Nullable;
-
 import java.io.File;
 import java.io.InputStream;
 import java.util.Set;
@@ -14,77 +11,79 @@ import java.util.function.Consumer;
 
 public interface IAuxProtect {
 
-    File getDataFolder();
+  File getDataFolder();
 
-    InputStream getResource(String string);
+  InputStream getResource(String string);
 
-    void info(String msg);
+  void info(String msg);
 
-    void debug(String msg);
+  void debug(String msg);
 
-    void debug(String msg, int verb);
+  void debug(String msg, int verb);
 
-    void warning(String msg);
+  void warning(String msg);
 
-    void print(Throwable t);
+  void print(Throwable t);
 
-    PlatformType getPlatform();
+  PlatformType getPlatform();
 
-    SQLManager getSqlManager();
+  SQLManager getSqlManager();
 
-    APConfig getAPConfig();
+  APConfig getAPConfig();
 
-    void add(DbEntry dbEntry);
+  void add(DbEntry dbEntry);
 
-    void runAsync(Runnable run);
+  void runAsync(Runnable run);
 
-    void runSync(Runnable runnable);
+  void runSync(Runnable runnable);
 
-    String getCommandPrefix();
+  String getCommandPrefix();
 
-    String getCommandAlias();
+  String getCommandAlias();
 
-    SenderAdapter<?, ?> getConsoleSender();
+  SenderAdapter<?, ?> getConsoleSender();
 
-    @Nullable
-    SenderAdapter<?, ?> getSenderAdapter(String name);
+  @Nullable
+  SenderAdapter<?, ?> getSenderAdapter(String name);
 
-    boolean isShuttingDown();
+  boolean isShuttingDown();
 
-    boolean isHooked(String name);
+  boolean isHooked(String name);
 
-    File getRootDirectory();
+  File getRootDirectory();
 
-    String getPlatformVersion();
+  String getPlatformVersion();
 
-    String getPluginVersion();
+  String getPluginVersion();
 
-    @Nullable
-    APPlayer<?> getAPPlayer(SenderAdapter<?, ?> sender);
+  @Nullable
+  APPlayer<?> getAPPlayer(SenderAdapter<?, ?> sender);
 
-    String formatMoney(double amount);
+  String formatMoney(double amount);
 
-    int queueSize();
+  int queueSize();
 
-    String getStackLog();
+  String getStackLog();
 
-    Set<String> listPlayers();
+  Set<String> listPlayers();
 
-    boolean isEnabled();
+  boolean isEnabled();
 
-    void addRemoveEntryListener(Consumer<DbEntry> consumer, boolean add);
+  void addRemoveEntryListener(Consumer<DbEntry> consumer, boolean add);
 
-    void broadcast(String msg, APPermission node);
+  void broadcast(String msg, APPermission node);
 
-    boolean doesWorldExist(String world);
+  boolean doesWorldExist(String world);
 
-    Set<String> getWorlds();
+  Set<String> getWorlds();
 
-    boolean isPrimaryThread();
+  boolean isPrimaryThread();
 
-    MessageBuilder getMessageBuilder();
-    Set<String> getEntityTypes();
-    Set<String> getItemTypes();
-    boolean isPrivate();
-    void setDefaultChatLogging(boolean enabled);
+  Set<String> getEntityTypes();
+
+  Set<String> getItemTypes();
+
+  boolean isPrivate();
+
+  void setDefaultChatLogging(boolean enabled);
 }

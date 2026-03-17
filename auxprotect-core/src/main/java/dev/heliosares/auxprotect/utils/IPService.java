@@ -4,35 +4,41 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.util.Scanner;
 import java.util.TimeZone;
 
 public class IPService {
-    private static final String API_URL = "https://ipapi.co/<ip>/yaml/";
 
-    @Nonnull
-    public static TimeZone getTimeZoneForIP(@Nullable String ip) {
-        if (ip != null) try {
-            URL url = new URL(API_URL.replace("<ip>", ip));
+  private static final String API_URL = "https://ipapi.co/<ip>/yaml/";
 
-            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-            conn.setRequestMethod("GET");
+  @Nonnull
+  public static TimeZone getTimeZoneForIP(@Nullable String ip) {
+      if (ip != null) {
+          try {
+              URL url = URI.create(API_URL.replace("<ip>", ip)).toURL();
 
-            if (conn.getResponseCode() != 200) throw new IOException();
+              HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+              conn.setRequestMethod("GET");
 
-            Scanner scanner = new Scanner(conn.getInputStream());
-            String response = scanner.useDelimiter("\\A").next();
-            scanner.close();
+              if (conn.getResponseCode() != 200) {
+                  throw new IOException();
+              }
 
-            for (String line : response.split("[\n\r]")) {
-                String[] kv = line.split(":\\s*");
-                if (kv[0].equalsIgnoreCase("timezone") && kv.length >= 2) {
-                    return TimeZone.getTimeZone(kv[1]);
-                }
-            }
-        } catch (IOException ignored) {
-        }
-        return TimeZone.getDefault();
-    }
+              Scanner scanner = new Scanner(conn.getInputStream());
+              String response = scanner.useDelimiter("\\A").next();
+              scanner.close();
+
+              for (String line : response.split("[\n\r]")) {
+                  String[] kv = line.split(":\\s*");
+                  if (kv[0].equalsIgnoreCase("timezone") && kv.length >= 2) {
+                      return TimeZone.getTimeZone(kv[1]);
+                  }
+              }
+          } catch (IOException ignored) {
+          }
+      }
+    return TimeZone.getDefault();
+  }
 }

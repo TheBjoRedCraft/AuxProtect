@@ -1,55 +1,52 @@
 package dev.heliosares.auxprotect.adapters.sender;
 
-import dev.heliosares.auxprotect.adapters.message.ColorTranslator;
 import dev.heliosares.auxprotect.core.IAuxProtect;
 import dev.heliosares.auxprotect.core.Language;
 import dev.heliosares.auxprotect.core.PlatformType;
-
 import java.util.UUID;
+import net.kyori.adventure.text.Component;
 
 public abstract class SenderAdapter<S, P extends IAuxProtect> {
-    protected final S sender;
-    protected final P plugin;
 
-    protected SenderAdapter(S sender, P plugin) {
-        this.sender = sender;
-        this.plugin = plugin;
-    }
+  protected final S sender;
+  protected final P plugin;
 
-    public final S getSender() {
-        return sender;
-    }
+  protected SenderAdapter(S sender, P plugin) {
+    this.sender = sender;
+    this.plugin = plugin;
+  }
 
-    public final P getPlugin() {
-        return plugin;
-    }
+  public final S getSender() {
+    return sender;
+  }
 
-    public abstract String getName();
+  public final P getPlugin() {
+    return plugin;
+  }
 
-    public abstract UUID getUniqueId();
+  public abstract String getName();
 
-    public final PlatformType getPlatform() {
-        return getPlugin().getPlatform();
-    }
+  public abstract UUID getUniqueId();
 
-    public void sendLang(Language.L lang, Object... format) {
-        sendMessageRaw(lang.translate(format));
-    }
+  public final PlatformType getPlatform() {
+    return getPlugin().getPlatform();
+  }
 
-    public final void sendMessageRaw(String message) {
-        sendMessageRaw_(stripColorIfConsole(ColorTranslator.translateAlternateColorCodes(message)));
-    }
+  public void sendLang(Language.L lang, Object... format) {
+    sendMessageRaw(lang.translate(format));
+  }
 
-    protected abstract void sendMessageRaw_(String message);
+  public abstract void sendMessage(Component message);
 
-    public abstract boolean hasPermission(String node);
+  public final void sendMessageRaw(String message) {
+    sendMessageRaw_(message);
+  }
 
-    public abstract void executeCommand(String command);
+  protected abstract void sendMessageRaw_(String message);
 
-    public abstract boolean isConsole();
+  public abstract boolean hasPermission(String node);
 
-    protected final String stripColorIfConsole(String text) {
-        if (!isConsole()) return text;
-        return ColorTranslator.stripColor(text);
-    }
+  public abstract void executeCommand(String command);
+
+  public abstract boolean isConsole();
 }

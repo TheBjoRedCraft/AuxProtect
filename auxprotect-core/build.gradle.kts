@@ -15,4 +15,5 @@ dependencies {
     implementation("jakarta.annotation", "jakarta.annotation-api", "3.0.0")
     implementation("org.yaml", "snakeyaml", "2.2")
     implementation("dev.kshl", "KshLib", "2.0")
+    implementation("net.kyori", "adventure-api", "4.26.1")
 }

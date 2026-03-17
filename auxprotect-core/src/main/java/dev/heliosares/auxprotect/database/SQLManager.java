@@ -13,8 +13,6 @@ import dev.kshl.kshlib.sql.ConnectionManager;
 import dev.kshl.kshlib.sql.SQLIDManager;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
-import lombok.Getter;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -30,706 +28,784 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Getter;
 
 public class SQLManager extends ConnectionManager {
-    public static final int MAX_LOOKUP_SIZE = 500000;
-    @Getter
-    private static SQLManager instance;
-    private final IAuxProtect plugin;
-    private final HashMap<String, Integer> worlds = new HashMap<>();
-    private final File sqliteFile;
-    @Getter
-    private final LookupManager lookupManager;
-    private final BlobManager invBlobManager;
-    private final BlobManager transactionBlobManager;
-    private final SQLUserManager usermanager;
-    @Getter
-    private final String tablePrefix;
-    int rowcount;
-    private MigrationManager migrationmanager;
-    private boolean isConnected;
-    private boolean isConnectedAndInitDone;
-    private int nextWid;
-    private int nextActionId = 1;
-    @Getter
-    private long timeConnected;
-    @Getter
-    private final SQLIDManager.Str uidManager = new SQLIDManager.Str(this, Table.AUXPROTECT_UIDS.toString(), true);
-    @Getter
-    private final SQLIDManager.Str enumIDManager = new SQLIDManager.Str(this, Table.AUXPROTECT_ENUM_IDS.toString(), false);
 
-    public SQLManager(IAuxProtect plugin, String host, String database, String prefix, File sqliteFile, String user, String pass) throws ClassNotFoundException, SQLException, IOException {
-        super(sqliteFile, host, database, user, pass, 10);
-        instance = this;
-        this.plugin = plugin;
-        this.usermanager = new SQLUserManager(plugin, this);
-        this.lookupManager = new LookupManager(this, plugin);
-        this.invBlobManager = plugin.getPlatform() == PlatformType.SPIGOT ? new BlobManager(Table.AUXPROTECT_INVBLOB, this, plugin) : null;
-        this.transactionBlobManager = plugin.getPlatform() == PlatformType.SPIGOT ? new BlobManager(Table.AUXPROTECT_TRANSACTIONS_BLOB, this, plugin) : null;
-        if (prefix == null || prefix.isEmpty()) {
-            tablePrefix = "";
-        } else {
-            prefix = prefix.replaceAll(" ", "_");
-            if (!prefix.endsWith("_")) {
-                prefix += "_";
+  public static final int MAX_LOOKUP_SIZE = 500000;
+  @Getter
+  private static SQLManager instance;
+  private final IAuxProtect plugin;
+  private final HashMap<String, Integer> worlds = new HashMap<>();
+  private final File sqliteFile;
+  @Getter
+  private final LookupManager lookupManager;
+  private final BlobManager invBlobManager;
+  private final BlobManager transactionBlobManager;
+  private final SQLUserManager usermanager;
+  @Getter
+  private final String tablePrefix;
+  @Getter
+  private final SQLIDManager.Str uidManager = new SQLIDManager.Str(Table.AUXPROTECT_UIDS.toString(),
+      true);
+  @Getter
+  private final SQLIDManager.Str enumIDManager = new SQLIDManager.Str(
+      Table.AUXPROTECT_ENUM_IDS.toString(), false);
+  int rowcount;
+  private MigrationManager migrationmanager;
+  private boolean isConnected;
+  private boolean isConnectedAndInitDone;
+  private int nextWid;
+  private int nextActionId = 1;
+  @Getter
+  private long timeConnected;
+
+  public SQLManager(IAuxProtect plugin, String host, String database, String prefix,
+      File sqliteFile, String user, String pass)
+      throws ClassNotFoundException, SQLException, IOException {
+    super(sqliteFile, host, database, user, pass, 10);
+    instance = this;
+    this.plugin = plugin;
+    this.usermanager = new SQLUserManager(plugin, this);
+    this.lookupManager = new LookupManager(this, plugin);
+    this.invBlobManager =
+        plugin.getPlatform() == PlatformType.SPIGOT ? new BlobManager(Table.AUXPROTECT_INVBLOB,
+            this, plugin) : null;
+    this.transactionBlobManager = plugin.getPlatform() == PlatformType.SPIGOT ? new BlobManager(
+        Table.AUXPROTECT_TRANSACTIONS_BLOB, this, plugin) : null;
+    if (prefix == null || prefix.isEmpty()) {
+      tablePrefix = "";
+    } else {
+      prefix = prefix.replaceAll(" ", "_");
+      if (!prefix.endsWith("_")) {
+        prefix += "_";
+      }
+      tablePrefix = prefix;
+    }
+    this.sqliteFile = sqliteFile;
+  }
+
+  public SQLUserManager getUserManager() {
+    return usermanager;
+  }
+
+  public int getCount() {
+    return rowcount;
+  }
+
+  @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+  public boolean isConnected() {
+    return isConnected;
+  }
+
+  public int getVersion() {
+    return migrationmanager.getVersion();
+  }
+
+  public int getOriginalVersion() {
+    return migrationmanager.getOriginalVersion();
+  }
+
+  @Override
+  public void init(Connection connection) throws SQLException {
+    timeConnected = System.currentTimeMillis();
+    plugin.info("Connecting to database...");
+
+    try {
+      executeTransaction(connection, () -> {
+        this.migrationmanager = new MigrationManager(this, connection, plugin);
+        migrationmanager.preTables();
+
+        createTables(connection);
+
+        usermanager.init(connection);
+
+        migrationmanager.postTables();
+
+        postTables(connection);
+
+        plugin.debug("table init done.");
+      });
+    } catch (Throwable e) {
+      if (migrationmanager != null && migrationmanager.isMigrating()) {
+        plugin.warning("An error occurred while migrating database. Rolling back changes.");
+      } else {
+        plugin.warning("An error occurred during initialization. Rolling back changes.");
+      }
+      throw e;
+    }
+
+    isConnected = true;
+    plugin.info("Connected!");
+
+    // Auto Purge
+    out:
+    if (plugin.getAPConfig().getAutoPurgePeriodicity() > 0) {
+      long timeSincePurge = System.currentTimeMillis() - getLast(connection, LastKeys.AUTO_PURGE);
+      if (timeSincePurge < plugin.getAPConfig().getAutoPurgePeriodicity()) {
+        plugin.info(
+            Language.L.COMMAND__PURGE__SKIPAUTO.translate(TimeUtil.millisToString(timeSincePurge)));
+        break out;
+      }
+      boolean anypurge = false;
+      int count = 0;
+      for (Table table : Table.values()) {
+        if (table.canPurge() && table.exists(plugin)) {
+          if (table.getAutoPurgeInterval() >= Table.MIN_PURGE_INTERVAL) {
+            anypurge = true;
+            plugin.info(Language.L.COMMAND__PURGE__PURGING.translate(table.toString()));
+            try {
+              count += purge(table, table.getAutoPurgeInterval());
+            } catch (Exception e) {
+              plugin.warning(Language.L.COMMAND__PURGE__ERROR.translate());
+              plugin.print(e);
             }
-            tablePrefix = prefix;
+          }
         }
-        this.sqliteFile = sqliteFile;
-    }
-
-    public SQLUserManager getUserManager() {
-        return usermanager;
-    }
-
-    public int getCount() {
-        return rowcount;
-    }
-
-    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
-    public boolean isConnected() {
-        return isConnected;
-    }
-
-    public int getVersion() {
-        return migrationmanager.getVersion();
-    }
-
-    public int getOriginalVersion() {
-        return migrationmanager.getOriginalVersion();
-    }
-
-    @Override
-    public void init(Connection connection) throws SQLException {
-        timeConnected = System.currentTimeMillis();
-        plugin.info("Connecting to database...");
-
+      }
+      if (anypurge) {
         try {
-            executeTransaction(connection, () -> {
-                this.migrationmanager = new MigrationManager(this, connection, plugin);
-                migrationmanager.preTables();
-
-                createTables(connection);
-
-                usermanager.init(connection);
-
-                migrationmanager.postTables();
-
-                postTables(connection);
-
-                plugin.debug("table init done.");
-            });
-        } catch (Throwable e) {
-            if (migrationmanager != null && migrationmanager.isMigrating()) {
-                plugin.warning("An error occurred while migrating database. Rolling back changes.");
-            } else {
-                plugin.warning("An error occurred during initialization. Rolling back changes.");
+            if (!isMySQL()) {
+                vacuum(connection);
             }
-            throw e;
+        } catch (SQLException e) {
+          plugin.warning(Language.L.COMMAND__PURGE__ERROR.translate());
+          plugin.print(e);
+          break out;
         }
-
-        isConnected = true;
-        plugin.info("Connected!");
-
-        // Auto Purge
-        out:
-        if (plugin.getAPConfig().getAutoPurgePeriodicity() > 0) {
-            long timeSincePurge = System.currentTimeMillis() - getLast(connection, LastKeys.AUTO_PURGE);
-            if (timeSincePurge < plugin.getAPConfig().getAutoPurgePeriodicity()) {
-                plugin.info(Language.L.COMMAND__PURGE__SKIPAUTO.translate(TimeUtil.millisToString(timeSincePurge)));
-                break out;
-            }
-            boolean anypurge = false;
-            int count = 0;
-            for (Table table : Table.values()) {
-                if (table.canPurge() && table.exists(plugin)) {
-                    if (table.getAutoPurgeInterval() >= Table.MIN_PURGE_INTERVAL) {
-                        anypurge = true;
-                        plugin.info(Language.L.COMMAND__PURGE__PURGING.translate(table.toString()));
-                        try {
-                            count += purge(table, table.getAutoPurgeInterval());
-                        } catch (Exception e) {
-                            plugin.warning(Language.L.COMMAND__PURGE__ERROR.translate());
-                            plugin.print(e);
-                        }
-                    }
-                }
-            }
-            if (anypurge) {
-                try {
-                    if (!isMySQL()) vacuum(connection);
-                } catch (SQLException e) {
-                    plugin.warning(Language.L.COMMAND__PURGE__ERROR.translate());
-                    plugin.print(e);
-                    break out;
-                }
-                plugin.info(Language.L.COMMAND__PURGE__COMPLETE_COUNT.translate(count));
-                setLast(connection, LastKeys.AUTO_PURGE, System.currentTimeMillis());
-            }
-        }
-
-        otherConnectTasks();
-
-        plugin.info("Init done.");
-        isConnectedAndInitDone = true;
+        plugin.info(Language.L.COMMAND__PURGE__COMPLETE_COUNT.translate(count));
+        setLast(connection, LastKeys.AUTO_PURGE, System.currentTimeMillis());
+      }
     }
 
-    protected void otherConnectTasks() {
+    otherConnectTasks();
+
+    plugin.info("Init done.");
+    isConnectedAndInitDone = true;
+  }
+
+  protected void otherConnectTasks() {
+  }
+
+  public void close() {
+    isConnected = false;
+    super.close();
+  }
+
+  @Override
+  protected void debug(String line) {
+    plugin.debug(line, 5);
+  }
+
+  @Override
+  protected boolean checkAsync() {
+    return !plugin.isPrimaryThread();
+  }
+
+  @Override
+  protected boolean isDebug() {
+    return plugin.getAPConfig().getDebug() >= 5;
+  }
+
+  @Nullable
+  public String backup() {
+      if (isMySQL()) {
+          return null;
+      }
+
+    File backup = new File(sqliteFile.getParentFile(),
+        "backups/backup-v" + migrationmanager.getVersion() + "-" + System.currentTimeMillis()
+            + ".db");
+
+    if (!backup.getParentFile().exists()) {
+      boolean ignored = backup.getParentFile().mkdirs();
     }
-
-    public void close() {
-        isConnected = false;
-        super.close();
-    }
-
-    @Override
-    protected void debug(String line) {
-        plugin.debug(line, 5);
-    }
-
-    @Override
-    protected boolean checkAsync() {
-        return !plugin.isPrimaryThread();
-    }
-
-    @Override
-    protected boolean isDebug() {
-        return plugin.getAPConfig().getDebug() >= 5;
-    }
-
-    @Nullable
-    public String backup() {
-        if (isMySQL()) return null;
-
-        File backup = new File(sqliteFile.getParentFile(), "backups/backup-v" + migrationmanager.getVersion() + "-" + System.currentTimeMillis() + ".db");
-
-        if (!backup.getParentFile().exists()) {
-            boolean ignored = backup.getParentFile().mkdirs();
-        }
 
 //        if (plugin.getAPConfig().doDisableVacuum()) {
 //            plugin.info("Vacuum is disabled, creating physical copy instead");
-        try {
-            Files.copy(sqliteFile.toPath(), backup.toPath());
-        } catch (IOException e) {
-            plugin.warning("Failed to create backup.");
-        }
+    try {
+      Files.copy(sqliteFile.toPath(), backup.toPath());
+    } catch (IOException e) {
+      plugin.warning("Failed to create backup.");
+    }
 //        } else {
 //            execute("VACUUM INTO ?", connection, backup.getAbsolutePath());
 //        }
-        return backup.getAbsolutePath();
+    return backup.getAbsolutePath();
+  }
+
+  protected void createTables(Connection connection) throws SQLException {
+
+    if (invBlobManager != null) {
+      invBlobManager.createTable(connection);
     }
 
-    protected void createTables(Connection connection) throws SQLException {
+    if (transactionBlobManager != null) {
+      transactionBlobManager.createTable(connection);
+    }
 
-        if (invBlobManager != null) {
-            invBlobManager.createTable(connection);
-        }
+    uidManager.init(connection);
+    enumIDManager.init(connection);
 
-        if (transactionBlobManager != null) {
-            transactionBlobManager.createTable(connection);
-        }
-
-
-
-        uidManager.init(connection);
-        enumIDManager.init(connection);
-
-        boolean doIndex = plugin.getAPConfig().isIndexing();
+    boolean doIndex = plugin.getAPConfig().isIndexing();
+    if (doIndex) {
+      plugin.info(
+          "Initializing and indexing tables... (this may take a while if you have a big database and it's the first time indexing)");
+    }
+    for (Table table : Table.values()) {
+      if (table.hasAPEntries() && table.exists(plugin)) {
+        execute(connection, table.getSQLCreateString(plugin));
         if (doIndex) {
-            plugin.info("Initializing and indexing tables... (this may take a while if you have a big database and it's the first time indexing)");
+          for (String indexStatement : table.getIndexStatements(plugin.getPlatform())) {
+            execute(connection, indexStatement);
+          }
         }
-        for (Table table : Table.values()) {
-            if (table.hasAPEntries() && table.exists(plugin)) {
-                execute(connection, table.getSQLCreateString(plugin));
-                if (doIndex) {
-                    for (String indexStatement : table.getIndexStatements(plugin.getPlatform())) {
-                        execute(connection, indexStatement);
-                    }
-                }
+      }
+    }
+    String stmt;
+    if (plugin.getPlatform() == PlatformType.SPIGOT) {
+      stmt = "CREATE TABLE IF NOT EXISTS " + Table.AUXPROTECT_INVDIFF;
+      stmt += " (time BIGINT, uid INT, slot INT, qty INT, blobid BIGINT, damage INT);";
+      execute(connection, stmt);
+      execute(connection,
+          "CREATE INDEX IF NOT EXISTS idx_" + Table.AUXPROTECT_INVDIFF + "_time_uid ON "
+              + Table.AUXPROTECT_INVDIFF + " (time, uid)");
+
+      stmt = "CREATE TABLE IF NOT EXISTS " + Table.AUXPROTECT_WORLDS;
+      stmt += " (name varchar(255), wid SMALLINT);";
+      execute(connection, stmt);
+
+      stmt = "SELECT * FROM " + Table.AUXPROTECT_WORLDS + ";";
+      debugSQLStatement(stmt);
+      try (Statement statement = connection.createStatement()) {
+        try (ResultSet results = statement.executeQuery(stmt)) {
+          while (results.next()) {
+            String world = results.getString("name");
+            int wid = results.getInt("wid");
+            worlds.put(world, wid);
+            if (wid >= nextWid) {
+              nextWid = wid + 1;
             }
+          }
         }
-        String stmt;
-        if (plugin.getPlatform() == PlatformType.SPIGOT) {
-            stmt = "CREATE TABLE IF NOT EXISTS " + Table.AUXPROTECT_INVDIFF;
-            stmt += " (time BIGINT, uid INT, slot INT, qty INT, blobid BIGINT, damage INT);";
-            execute(connection, stmt);
-            execute(connection, "CREATE INDEX IF NOT EXISTS idx_" + Table.AUXPROTECT_INVDIFF + "_time_uid ON " + Table.AUXPROTECT_INVDIFF + " (time, uid)");
-
-            stmt = "CREATE TABLE IF NOT EXISTS " + Table.AUXPROTECT_WORLDS;
-            stmt += " (name varchar(255), wid SMALLINT);";
-            execute(connection, stmt);
-
-            stmt = "SELECT * FROM " + Table.AUXPROTECT_WORLDS + ";";
-            debugSQLStatement(stmt);
-            try (Statement statement = connection.createStatement()) {
-                try (ResultSet results = statement.executeQuery(stmt)) {
-                    while (results.next()) {
-                        String world = results.getString("name");
-                        int wid = results.getInt("wid");
-                        worlds.put(world, wid);
-                        if (wid >= nextWid) {
-                            nextWid = wid + 1;
-                        }
-                    }
-                }
-            }
-        }
-
-        execute(connection, "CREATE TABLE IF NOT EXISTS " + Table.AUXPROTECT_LASTS + " (name SMALLINT PRIMARY KEY, value BIGINT)");
-        for (LastKeys key : LastKeys.values()) {
-            try {
-                execute(connection, "INSERT INTO " + Table.AUXPROTECT_LASTS + " (name) VALUES (?)", key.id);
-            } catch (SQLException ignored) {
-                // Ensures each LastKeys has a value, so we can just UPDATE later
-            }
-        }
-
-        execute(connection, "CREATE TABLE IF NOT EXISTS " + Table.AUXPROTECT_API_ACTIONS + " (name varchar(255), nid SMALLINT, pid SMALLINT, ntext varchar(255), ptext varchar(255), owner varchar(255), created BIGINT)");
-
-        try (Statement statement = connection.createStatement()) {
-            try (ResultSet results = statement.executeQuery("SELECT * FROM " + Table.AUXPROTECT_API_ACTIONS)) {
-                while (results.next()) {
-                    String key = results.getString("name");
-                    int nid = results.getInt("nid");
-                    int pid = results.getInt("pid");
-                    String ntext = results.getString("ntext");
-                    String ptext = results.getString("ptext");
-                    nextActionId = Math.max(nextActionId, Math.max(nid, pid) + 1);
-                    new EntryAction(key, nid, pid, ntext, ptext, Table.AUXPROTECT_API_ACTIONS);
-                }
-            }
-        }
+      }
     }
 
-    protected void postTables(Connection connection) throws SQLException {
-        if (getLast(connection, LastKeys.LEGACY_POSITIONS) == 0)
-            setLast(connection, LastKeys.LEGACY_POSITIONS, System.currentTimeMillis());
+    execute(connection, "CREATE TABLE IF NOT EXISTS " + Table.AUXPROTECT_LASTS
+        + " (name SMALLINT PRIMARY KEY, value BIGINT)");
+    for (LastKeys key : LastKeys.values()) {
+      try {
+        execute(connection, "INSERT INTO " + Table.AUXPROTECT_LASTS + " (name) VALUES (?)", key.id);
+      } catch (SQLException ignored) {
+        // Ensures each LastKeys has a value, so we can just UPDATE later
+      }
     }
 
-    public void vacuum(Connection connection) throws SQLException {
-        if (plugin.getAPConfig().doDisableVacuum()) {
-            plugin.info("Vacuum is disabled. To force this run `ap sqli vacuum` from the console.");
-            return;
+    execute(connection, "CREATE TABLE IF NOT EXISTS " + Table.AUXPROTECT_API_ACTIONS
+        + " (name varchar(255), nid SMALLINT, pid SMALLINT, ntext varchar(255), ptext varchar(255), owner varchar(255), created BIGINT)");
+
+    try (Statement statement = connection.createStatement()) {
+      try (ResultSet results = statement.executeQuery(
+          "SELECT * FROM " + Table.AUXPROTECT_API_ACTIONS)) {
+        while (results.next()) {
+          String key = results.getString("name");
+          int nid = results.getInt("nid");
+          int pid = results.getInt("pid");
+          String ntext = results.getString("ntext");
+          String ptext = results.getString("ptext");
+          nextActionId = Math.max(nextActionId, Math.max(nid, pid) + 1);
+          new EntryAction(key, nid, pid, ntext, ptext, Table.AUXPROTECT_API_ACTIONS);
         }
-        long sinceLastVac = System.currentTimeMillis() - getLast(connection, LastKeys.VACUUM);
-        if (sinceLastVac < 24L * 3600000L * 6L) {
-            plugin.info(Language.L.COMMAND__PURGE__NOTVACUUM.translate(TimeUtil.millisToString(sinceLastVac)));
-            return;
+      }
+    }
+  }
+
+  protected void postTables(Connection connection) throws SQLException {
+      if (getLast(connection, LastKeys.LEGACY_POSITIONS) == 0) {
+          setLast(connection, LastKeys.LEGACY_POSITIONS, System.currentTimeMillis());
+      }
+  }
+
+  public void vacuum(Connection connection) throws SQLException {
+    if (plugin.getAPConfig().doDisableVacuum()) {
+      plugin.info("Vacuum is disabled. To force this run `ap sqli vacuum` from the console.");
+      return;
+    }
+    long sinceLastVac = System.currentTimeMillis() - getLast(connection, LastKeys.VACUUM);
+    if (sinceLastVac < 24L * 3600000L * 6L) {
+      plugin.info(
+          Language.L.COMMAND__PURGE__NOTVACUUM.translate(TimeUtil.millisToString(sinceLastVac)));
+      return;
+    }
+    plugin.info(Language.L.COMMAND__PURGE__VACUUM.translate());
+    try {
+      execute(connection, "VACUUM");
+    } catch (SQLException e) {
+      if (e.getErrorCode() == 13) {
+        plugin.info(
+            "Your machine has insufficient space in the temporary partition to condense the database. "
+                +
+                "If you keep running into this issue despite room on the disk, add the following line to the end of the config, with no indentation:\n"
+                +
+                "disablevacuum: true");
+      } else {
+        throw e;
+      }
+    }
+    setLast(connection, LastKeys.VACUUM, System.currentTimeMillis());
+  }
+
+  protected boolean putPosEntry(PreparedStatement preparedStatement, DbEntry dbEntry,
+      AtomicInteger i) throws SQLException {
+    return false;
+  }
+
+  protected void putXrayEntry(PreparedStatement preparedStatement, DbEntry dbEntry, AtomicInteger i)
+      throws SQLException {
+  }
+
+  protected boolean putSingleItemEntry(PreparedStatement preparedStatement, DbEntry dbEntry,
+      AtomicInteger i) throws SQLException, BusyException {
+    return false;
+  }
+
+  protected void putTransaction(PreparedStatement preparedStatement, DbEntry dbEntry,
+      AtomicInteger i) throws SQLException, BusyException {
+  }
+
+
+  protected void put(Connection connection, Table table, @Nullable List<DbEntry> entries)
+      throws SQLException, BusyException {
+    long start = System.nanoTime();
+    if (entries == null || entries.isEmpty()) {
+      entries = new ArrayList<>();
+
+      DbEntry entry;
+      while (entries.size() < 128 && (entry = table.queue.poll()) != null) {
+        entries.add(entry);
+      }
+    }
+
+    if (entries.isEmpty()) {
+      return;
+    }
+
+    StringBuilder stmt = new StringBuilder("INSERT INTO " + table + " ");
+    int numColumns = table.getNumColumns(plugin.getPlatform());
+    String inc = Table.getValuesTemplate(numColumns);
+    final boolean hasLocation = table.hasLocation(plugin.getPlatform());
+    final boolean hasData = table.hasData();
+    final boolean hasAction = table.hasActionId();
+    final boolean hasLook = table.hasLook();
+    stmt.append(table.getValuesHeader(plugin.getPlatform()));
+    stmt.append(" VALUES");
+    for (int i = 0; i < entries.size(); i++) {
+      stmt.append("\n").append(inc);
+      if (i + 1 == entries.size()) {
+        stmt.append(";");
+      } else {
+        stmt.append(",");
+      }
+    }
+    try (PreparedStatement statement = connection.prepareStatement(stmt.toString())) {
+
+      AtomicInteger i = new AtomicInteger(1);
+      for (DbEntry dbEntry : entries) {
+        final int prior = i.get();
+        statement.setLong(i.getAndIncrement(), dbEntry.getSnowflake());
+        statement.setInt(i.getAndIncrement(), dbEntry.getUid());
+        int action = dbEntry.getState() ? dbEntry.getAction().idPos : dbEntry.getAction().id;
+
+        if (hasAction) {
+          statement.setInt(i.getAndIncrement(), action);
         }
-        plugin.info(Language.L.COMMAND__PURGE__VACUUM.translate());
-        try {
-            execute(connection, "VACUUM");
-        } catch (SQLException e) {
-            if (e.getErrorCode() == 13) {
-                plugin.info("Your machine has insufficient space in the temporary partition to condense the database. " +
-                        "If you keep running into this issue despite room on the disk, add the following line to the end of the config, with no indentation:\n" +
-                        "disablevacuum: true");
+        if (hasLocation) {
+          statement.setInt(i.getAndIncrement(), getWID(dbEntry.getWorld()));
+          statement.setInt(i.getAndIncrement(), dbEntry.getX());
+          statement.setInt(i.getAndIncrement(),
+              Math.max(Math.min(dbEntry.getY(), Short.MAX_VALUE), Short.MIN_VALUE));
+          statement.setInt(i.getAndIncrement(), dbEntry.getZ());
+
+          if (!putPosEntry(statement, dbEntry, i) && table == Table.AUXPROTECT_POSITION) {
+            statement.setByte(i.getAndIncrement(), (byte) 0);
+          }
+        }
+        if (hasLook) {
+          statement.setInt(i.getAndIncrement(), dbEntry.getPitch());
+          statement.setInt(i.getAndIncrement(), dbEntry.getYaw());
+        }
+        if (table.hasStringTarget()) {
+          String target = sanitize(dbEntry.getTargetUUID());
+          statement.setString(i.getAndIncrement(), target);
+          if (table == Table.AUXPROTECT_LONGTERM) {
+            statement.setInt(i.getAndIncrement(), target.toLowerCase().hashCode());
+          }
+        } else {
+          statement.setInt(i.getAndIncrement(), dbEntry.getTargetId());
+        }
+
+        putXrayEntry(statement, dbEntry, i);
+
+        if (hasData) {
+          statement.setString(i.getAndIncrement(), sanitize(dbEntry.getData()));
+        }
+        if (table.hasBlob()) {
+            if (dbEntry.hasBlob() && dbEntry.getBlob() != null) {
+                statement.setBytes(i.getAndIncrement(), dbEntry.getBlob());
             } else {
-                throw e;
+                statement.setNull(i.getAndIncrement(), Types.NULL);
             }
-        }
-        setLast(connection, LastKeys.VACUUM, System.currentTimeMillis());
-    }
-
-    protected boolean putPosEntry(PreparedStatement preparedStatement, DbEntry dbEntry, AtomicInteger i) throws SQLException {
-        return false;
-    }
-
-    protected void putXrayEntry(PreparedStatement preparedStatement, DbEntry dbEntry, AtomicInteger i) throws SQLException {
-    }
-
-    protected boolean putSingleItemEntry(PreparedStatement preparedStatement, DbEntry dbEntry, AtomicInteger i) throws SQLException, BusyException {
-        return false;
-    }
-
-    protected void putTransaction(PreparedStatement preparedStatement, DbEntry dbEntry, AtomicInteger i) throws SQLException, BusyException {
-    }
-
-
-    protected void put(Connection connection, Table table, @Nullable List<DbEntry> entries) throws SQLException, BusyException {
-        long start = System.nanoTime();
-        if (entries == null || entries.isEmpty()) {
-            entries = new ArrayList<>();
-
-            DbEntry entry;
-            while (entries.size() < 128 && (entry = table.queue.poll()) != null) {
-                entries.add(entry);
-            }
-        }
-
-        if (entries.isEmpty()) {
-            return;
-        }
-
-        StringBuilder stmt = new StringBuilder("INSERT INTO " + table + " ");
-        int numColumns = table.getNumColumns(plugin.getPlatform());
-        String inc = Table.getValuesTemplate(numColumns);
-        final boolean hasLocation = table.hasLocation(plugin.getPlatform());
-        final boolean hasData = table.hasData();
-        final boolean hasAction = table.hasActionId();
-        final boolean hasLook = table.hasLook();
-        stmt.append(table.getValuesHeader(plugin.getPlatform()));
-        stmt.append(" VALUES");
-        for (int i = 0; i < entries.size(); i++) {
-            stmt.append("\n").append(inc);
-            if (i + 1 == entries.size()) {
-                stmt.append(";");
+        } else if (table.hasBlobID()) {
+            if (dbEntry.hasBlob() && dbEntry.getBlob() != null) {
+                long blobid = getBlobManager(table).getBlobId(connection, dbEntry.getBlob(),
+                    dbEntry.getSnowflake());
+                statement.setLong(i.getAndIncrement(), blobid);
             } else {
-                stmt.append(",");
+                statement.setNull(i.getAndIncrement(), Types.NULL);
             }
-        }
-        try (PreparedStatement statement = connection.prepareStatement(stmt.toString())) {
-
-            AtomicInteger i = new AtomicInteger(1);
-            for (DbEntry dbEntry : entries) {
-                final int prior = i.get();
-                statement.setLong(i.getAndIncrement(), dbEntry.getSnowflake());
-                statement.setInt(i.getAndIncrement(), dbEntry.getUid());
-                int action = dbEntry.getState() ? dbEntry.getAction().idPos : dbEntry.getAction().id;
-
-                if (hasAction) {
-                    statement.setInt(i.getAndIncrement(), action);
-                }
-                if (hasLocation) {
-                    statement.setInt(i.getAndIncrement(), getWID(dbEntry.getWorld()));
-                    statement.setInt(i.getAndIncrement(), dbEntry.getX());
-                    statement.setInt(i.getAndIncrement(), Math.max(Math.min(dbEntry.getY(), Short.MAX_VALUE), Short.MIN_VALUE));
-                    statement.setInt(i.getAndIncrement(), dbEntry.getZ());
-
-                    if (!putPosEntry(statement, dbEntry, i) && table == Table.AUXPROTECT_POSITION) {
-                        statement.setByte(i.getAndIncrement(), (byte) 0);
-                    }
-                }
-                if (hasLook) {
-                    statement.setInt(i.getAndIncrement(), dbEntry.getPitch());
-                    statement.setInt(i.getAndIncrement(), dbEntry.getYaw());
-                }
-                if (table.hasStringTarget()) {
-                    String target = sanitize(dbEntry.getTargetUUID());
-                    statement.setString(i.getAndIncrement(), target);
-                    if (table == Table.AUXPROTECT_LONGTERM) {
-                        statement.setInt(i.getAndIncrement(), target.toLowerCase().hashCode());
-                    }
-                } else {
-                    statement.setInt(i.getAndIncrement(), dbEntry.getTargetId());
-                }
-
-                putXrayEntry(statement, dbEntry, i);
-
-                if (hasData) {
-                    statement.setString(i.getAndIncrement(), sanitize(dbEntry.getData()));
-                }
-                if (table.hasBlob()) {
-                    if (dbEntry.hasBlob() && dbEntry.getBlob() != null) {
-                        statement.setBytes(i.getAndIncrement(), dbEntry.getBlob());
-                    } else statement.setNull(i.getAndIncrement(), Types.NULL);
-                } else if (table.hasBlobID()) {
-                    if (dbEntry.hasBlob() && dbEntry.getBlob() != null) {
-                        long blobid = getBlobManager(table).getBlobId(connection, dbEntry.getBlob(), dbEntry.getSnowflake());
-                        statement.setLong(i.getAndIncrement(), blobid);
-                    } else statement.setNull(i.getAndIncrement(), Types.NULL);
-                    if (table.hasItemMeta()) {
-                        if (!putSingleItemEntry(statement, dbEntry, i)) {
-                            statement.setNull(i.getAndIncrement(), Types.NULL);
-                            statement.setNull(i.getAndIncrement(), Types.NULL);
-                        }
-                    }
-                }
-
-                putTransaction(statement, dbEntry, i);
-
-                if (i.get() - prior != numColumns) {
-                    plugin.warning("Incorrect number of columns provided inserting action "
-                            + dbEntry.getAction().toString() + " into " + table);
-                    plugin.warning(i.get() - prior + " =/= " + numColumns);
-                    plugin.warning("Statement: " + stmt);
-                    throw new IllegalArgumentException();
-                }
+          if (table.hasItemMeta()) {
+            if (!putSingleItemEntry(statement, dbEntry, i)) {
+              statement.setNull(i.getAndIncrement(), Types.NULL);
+              statement.setNull(i.getAndIncrement(), Types.NULL);
             }
-
-            statement.executeUpdate();
+          }
         }
 
-        int count = entries.size();
-        rowcount += count;
-        double elapsed = (System.nanoTime() - start) / 1000000.0;
-        plugin.debug(table + ": Logged " + count + " entrie(s) in " + (Math.round(elapsed * 10.0) / 10.0) + "ms. ("
-                + (Math.round(elapsed / count * 10.0) / 10.0) + "ms each)", 3);
+        putTransaction(statement, dbEntry, i);
+
+        if (i.get() - prior != numColumns) {
+          plugin.warning("Incorrect number of columns provided inserting action "
+              + dbEntry.getAction().toString() + " into " + table);
+          plugin.warning(i.get() - prior + " =/= " + numColumns);
+          plugin.warning("Statement: " + stmt);
+          throw new IllegalArgumentException();
+        }
+      }
+
+      statement.executeUpdate();
     }
 
-    public int purge(Table table, long time) throws SQLException, BusyException {
-        return execute(connection -> {
-            return purge(connection, table, time);
-        }, 3000L);
+    int count = entries.size();
+    rowcount += count;
+    double elapsed = (System.nanoTime() - start) / 1000000.0;
+    plugin.debug(
+        table + ": Logged " + count + " entrie(s) in " + (Math.round(elapsed * 10.0) / 10.0)
+            + "ms. ("
+            + (Math.round(elapsed / count * 10.0) / 10.0) + "ms each)", 3);
+  }
+
+  public int purge(Table table, long time) throws SQLException, BusyException {
+    return execute(connection -> {
+      return purge(connection, table, time);
+    }, 3000L);
+  }
+
+  public int purge(Connection connection, Table table, long time) throws SQLException {
+      if (!isConnected) {
+          return 0;
+      }
+    if (time < Table.MIN_PURGE_INTERVAL) {
+      return 0;
+    }
+    int count = 0;
+    if (table == null) {
+      for (Table table1 : Table.values()) {
+        if (!table1.hasAPEntries()) {
+          continue;
+        }
+        if (!table1.exists(plugin)) {
+          continue;
+        }
+        if (!table1.canPurge()) {
+          continue;
+        }
+        count += purge(connection, table1, time);
+      }
+      return count;
+    }
+    long snowflake = (System.currentTimeMillis() - time) * Snowflake.COUNTER_FACTOR;
+
+    count += executeReturnRows(connection, "DELETE FROM " + table + " WHERE (time < ?);",
+        snowflake);
+    if (table == Table.AUXPROTECT_INVENTORY) {
+      count += executeReturnRows(connection,
+          "DELETE FROM " + Table.AUXPROTECT_INVDIFF + " WHERE (time < ?)", snowflake);
+      count += executeReturnRows(connection,
+          "DELETE FROM " + Table.AUXPROTECT_INVDIFFBLOB + " WHERE "
+              + Table.AUXPROTECT_INVDIFFBLOB + ".blobid NOT IN (SELECT DISTINCT blobid FROM "
+              + Table.AUXPROTECT_INVDIFF + " WHERE blobid" + (isMySQL() ? " IS" : "")
+              + " NOT NULL)");
+      count += executeReturnRows(connection, "DELETE FROM " + Table.AUXPROTECT_INVBLOB + " WHERE "
+          + Table.AUXPROTECT_INVBLOB + ".blobid NOT IN (SELECT DISTINCT blobid FROM "
+          + Table.AUXPROTECT_INVENTORY + " WHERE blobid" + (isMySQL() ? " IS" : "") + " NOT NULL)");
+    }
+    return count;
+  }
+
+  public synchronized int getWID(String world) {
+    if (worlds.containsKey(world)) {
+      return worlds.get(world);
     }
 
-    public int purge(Connection connection, Table table, long time) throws SQLException {
-        if (!isConnected)
-            return 0;
-        if (time < Table.MIN_PURGE_INTERVAL) {
-            return 0;
-        }
-        int count = 0;
+    if (!plugin.doesWorldExist(world)) {
+      return -1;
+    }
+
+    try {
+      execute("INSERT INTO " + Table.AUXPROTECT_WORLDS + " (name, wid) VALUES (?,?)", 300000L,
+          world, nextWid);
+      worlds.put(world, nextWid);
+      rowcount++;
+      return nextWid++;
+    } catch (SQLException | BusyException e) {
+      plugin.print(e);
+    }
+    return -1;
+  }
+
+  public String getWorld(int wid) {
+    for (Entry<String, Integer> entry : worlds.entrySet()) {
+      if (entry.getValue() == wid) {
+        return entry.getKey();
+      }
+    }
+    return null;
+  }
+
+  public ArrayList<DbEntry> getAllUnratedXrayRecords(long since) {
+
+    String stmt = "SELECT * FROM " + Table.AUXPROTECT_XRAY + " WHERE rating=-1";
+    if (since > 0) {
+      stmt += " AND time>" + since * Snowflake.COUNTER_FACTOR;
+    }
+    try {
+      return lookupManager.lookup(Table.AUXPROTECT_XRAY, stmt, null);
+    } catch (LookupException e) {
+      plugin.print(e);
+    }
+    return null;
+  }
+
+  /**
+   * @see dev.heliosares.auxprotect.api.AuxProtectAPI#createAction(String, String, String, String)
+   */
+  @SuppressWarnings("unused")
+  public synchronized EntryAction createAction(@Nonnull String plugin, @Nonnull String key,
+      @Nonnull String ntext, @Nullable String ptext)
+      throws AlreadyExistsException, SQLException, BusyException {
+      if (plugin.isEmpty()) {
+          throw new IllegalArgumentException("plugin cannot be empty.");
+      }
+      if (key.isEmpty()) {
+          throw new IllegalArgumentException("key cannot be empty.");
+      }
+      if (ntext.isEmpty()) {
+          throw new IllegalArgumentException("ntext cannot be empty.");
+      }
+
+    EntryAction preexisting = EntryAction.getAction(key);
+      if (preexisting != null) {
+          throw new AlreadyExistsException(preexisting);
+      }
+
+    int pid, nid;
+    EntryAction action;
+
+    if (ptext == null) {
+      nid = nextActionId++;
+      pid = -1;
+      action = new EntryAction(key, nid, ntext, Table.AUXPROTECT_API);
+    } else {
+      nid = nextActionId++;
+      pid = nextActionId++;
+      action = new EntryAction(key, nid, pid, ntext, ptext, Table.AUXPROTECT_API);
+    }
+
+    execute("INSERT INTO " + Table.AUXPROTECT_API_ACTIONS
+            + " (name, nid, pid, ntext, ptext, owner, created) VALUES (?, ?, ?, ?, ?, ?, ?)", 30000L,
+        key, nid, pid, ntext, ptext, plugin, System.currentTimeMillis());
+    return action;
+  }
+
+  private BlobManager getBlobManager(Table table) {
+    return switch (table) {
+      case AUXPROTECT_INVENTORY -> invBlobManager;
+      case AUXPROTECT_TRANSACTIONS -> transactionBlobManager;
+      default -> throw new IllegalArgumentException(
+          "Table " + table + " does not have an associated blob manager.");
+    };
+  }
+
+  public void count() {
+    int total = 0;
+    plugin.info("Counting rows..");
+    for (Table table : Table.values()) {
+      if (!table.exists(plugin) || !table.hasAPEntries()) {
+        continue;
+      }
+      try {
+        total += count(table);
+      } catch (BusyException e) {
+        plugin.warning("Database busy, unable to count rows of " + table);
+      } catch (SQLException e) {
+        plugin.warning("An error occurred counting rows of " + table);
+        plugin.print(e);
+      }
+    }
+    plugin.info("Count complete. There are " + total + " rows.");
+    rowcount = total;
+  }
+
+  public int count(Table table) throws SQLException, BusyException {
+    return execute((ConnectionFunction<Integer>) connection -> count(connection, table.toString()),
+        5000L);
+  }
+
+  public byte[] getBlob(DbEntry entry) throws SQLException, BusyException {
+    if (entry.getAction().getTable().hasBlob()) {
+      return query("SELECT ablob FROM " + entry.getAction().getTable() + " WHERE time=? LIMIT 1",
+          rs -> {
+              if (!rs.next()) {
+                  return null;
+              }
+            return getBlob(rs, 1);
+          }, 10000L, entry.getSnowflake());
+    } else {
+      return getBlobManager(entry.getAction().getTable()).getBlob(entry);
+    }
+  }
+
+  public void getMultipleBlobs(DbEntry... entries) throws SQLException, BusyException {
+    execute(connection -> {
+      Table table = null;
+      StringBuilder stmt = new StringBuilder("SELECT time,ablob FROM %s WHERE time IN (");
+      HashMap<Long, DbEntry> entryHash = new HashMap<>();
+      for (DbEntry entry : entries) {
+          if (table == null) {
+              table = entry.getAction().getTable();
+          } else if (table != entry.getAction().getTable()) {
+              throw new IllegalArgumentException("Incompatible actions");
+          }
+        stmt.append(entry.getSnowflake()).append(",");
+        entryHash.put(entry.getSnowflake(), entry);
+      }
         if (table == null) {
-            for (Table table1 : Table.values()) {
-                if (!table1.hasAPEntries()) {
-                    continue;
-                }
-                if (!table1.exists(plugin)) {
-                    continue;
-                }
-                if (!table1.canPurge()) {
-                    continue;
-                }
-                count += purge(connection, table1, time);
-            }
-            return count;
+            return;
         }
-        long snowflake = (System.currentTimeMillis() - time) * Snowflake.COUNTER_FACTOR;
-
-        count += executeReturnRows(connection, "DELETE FROM " + table + " WHERE (time < ?);", snowflake);
-        if (table == Table.AUXPROTECT_INVENTORY) {
-            count += executeReturnRows(connection, "DELETE FROM " + Table.AUXPROTECT_INVDIFF + " WHERE (time < ?)", snowflake);
-            count += executeReturnRows(connection, "DELETE FROM " + Table.AUXPROTECT_INVDIFFBLOB + " WHERE "
-                    + Table.AUXPROTECT_INVDIFFBLOB + ".blobid NOT IN (SELECT DISTINCT blobid FROM "
-                    + Table.AUXPROTECT_INVDIFF + " WHERE blobid" + (isMySQL() ? " IS" : "") + " NOT NULL)");
-            count += executeReturnRows(connection, "DELETE FROM " + Table.AUXPROTECT_INVBLOB + " WHERE "
-                    + Table.AUXPROTECT_INVBLOB + ".blobid NOT IN (SELECT DISTINCT blobid FROM "
-                    + Table.AUXPROTECT_INVENTORY + " WHERE blobid" + (isMySQL() ? " IS" : "") + " NOT NULL)");
+      stmt = new StringBuilder(String.format(stmt.substring(0, stmt.length() - 1), table) + ")");
+      query(connection, stmt.toString(), rs -> {
+        while (rs.next()) {
+          entryHash.get(rs.getLong("time")).setBlob(getBlob(rs, "ablob"));
         }
-        return count;
+      });
+    }, 30000L);
+  }
+
+  protected void incrementRows() {
+    rowcount++;
+  }
+
+  public void cleanup() {
+    if (usermanager != null) {
+      usermanager.cleanup();
     }
-
-    public synchronized int getWID(String world) {
-        if (worlds.containsKey(world)) {
-            return worlds.get(world);
-        }
-
-        if (!plugin.doesWorldExist(world)) {
-            return -1;
-        }
-
-        try {
-            execute("INSERT INTO " + Table.AUXPROTECT_WORLDS + " (name, wid) VALUES (?,?)", 300000L, world, nextWid);
-            worlds.put(world, nextWid);
-            rowcount++;
-            return nextWid++;
-        } catch (SQLException | BusyException e) {
-            plugin.print(e);
-        }
-        return -1;
+    if (invBlobManager != null) {
+      invBlobManager.cleanup();
     }
-
-    public String getWorld(int wid) {
-        for (Entry<String, Integer> entry : worlds.entrySet()) {
-            if (entry.getValue() == wid) {
-                return entry.getKey();
-            }
-        }
-        return null;
+    if (transactionBlobManager != null) {
+      transactionBlobManager.cleanup();
     }
+  }
 
-    public ArrayList<DbEntry> getAllUnratedXrayRecords(long since) {
-
-        String stmt = "SELECT * FROM " + Table.AUXPROTECT_XRAY + " WHERE rating=-1";
-        if (since > 0) {
-            stmt += " AND time>" + since * Snowflake.COUNTER_FACTOR;
-        }
-        try {
-            return lookupManager.lookup(Table.AUXPROTECT_XRAY, stmt, null);
-        } catch (LookupException e) {
-            plugin.print(e);
-        }
-        return null;
+  public void tick() {
+      if (!isConnected() || !isConnectedAndInitDone) {
+          return;
+      }
+    try {
+      execute(this::tickPuts, 0L);
+    } catch (BusyException ignored) {
+    } catch (SQLException e) {
+      plugin.print(e);
     }
+    cleanup();
+  }
 
-    /**
-     * @see dev.heliosares.auxprotect.api.AuxProtectAPI#createAction(String, String, String, String)
-     */
-    @SuppressWarnings("unused")
-    public synchronized EntryAction createAction(@Nonnull String plugin, @Nonnull String key, @Nonnull String ntext, @Nullable String ptext) throws AlreadyExistsException, SQLException, BusyException {
-        if (plugin.isEmpty()) throw new IllegalArgumentException("plugin cannot be empty.");
-        if (key.isEmpty()) throw new IllegalArgumentException("key cannot be empty.");
-        if (ntext.isEmpty()) throw new IllegalArgumentException("ntext cannot be empty.");
+  protected void tickPuts(Connection connection) {
+    Arrays.asList(Table.values()).forEach(t -> {
+      try {
+        put(connection, t, null);
+      } catch (BusyException ignored) {
+        // Only thrown by UID lookups. Shouldn't happen because this thread already has the lock
+      } catch (SQLException e) {
+        plugin.print(e);
+      }
+    });
+  }
 
-        EntryAction preexisting = EntryAction.getAction(key);
-        if (preexisting != null) throw new AlreadyExistsException(preexisting);
+  public void setLast(LastKeys key, long value) throws SQLException, BusyException {
+    key.value = value;
+    execute((ConnectionConsumer) connection -> setLast(connection, key, value), 30000L);
+  }
 
-        int pid, nid;
-        EntryAction action;
+  public void setLast(Connection connection, LastKeys key, long value) throws SQLException {
+    key.value = value;
+    execute(connection, "UPDATE " + Table.AUXPROTECT_LASTS + " SET value=? WHERE name=?", value,
+        key.id);
+  }
 
-        if (ptext == null) {
-            nid = nextActionId++;
-            pid = -1;
-            action = new EntryAction(key, nid, ntext, Table.AUXPROTECT_API);
-        } else {
-            nid = nextActionId++;
-            pid = nextActionId++;
-            action = new EntryAction(key, nid, pid, ntext, ptext, Table.AUXPROTECT_API);
-        }
+  public long getLast(LastKeys key) throws SQLException, BusyException {
+      if (key.value != null) {
+          return key.value;
+      }
+    return execute((ConnectionFunction<Long>) connection -> getLast(connection, key), 30000L);
+  }
 
-
-        execute("INSERT INTO " + Table.AUXPROTECT_API_ACTIONS + " (name, nid, pid, ntext, ptext, owner, created) VALUES (?, ?, ?, ?, ?, ?, ?)", 30000L, key, nid, pid, ntext, ptext, plugin, System.currentTimeMillis());
-        return action;
+  public long getLast(Connection connection, LastKeys key) throws SQLException {
+      if (key.value != null) {
+          return key.value;
+      }
+    try (PreparedStatement stmt = connection.prepareStatement(
+        "SELECT value FROM " + Table.AUXPROTECT_LASTS + " WHERE name=?")) {
+      stmt.setShort(1, key.id);
+      try (ResultSet rs = stmt.executeQuery()) {
+          if (rs.next()) {
+              return rs.getLong(1);
+          }
+      }
+      return -1;
     }
+  }
 
-    private BlobManager getBlobManager(Table table) {
-        return switch (table) {
-            case AUXPROTECT_INVENTORY -> invBlobManager;
-            case AUXPROTECT_TRANSACTIONS -> transactionBlobManager;
-            default -> throw new IllegalArgumentException("Table " + table + " does not have an associated blob manager.");
-        };
+  @Nullable
+  public String getMigrationStatus() {
+      if (migrationmanager == null) {
+          return null;
+      }
+    return migrationmanager.getProgressString();
+  }
+
+  protected IAuxProtect getPlugin() {
+    return plugin;
+  }
+
+  public DbEntry convertToTransactionEntryForMigration(DbEntry entry, EntryAction action,
+      short quantity, double cost, double balance, int target_id2)
+      throws SQLException, BusyException {
+    return null;
+  }
+
+  public String indexedBy(String index) {
+    return String.format(isMySQL() ? "USE INDEX (%s)" : "INDEXED BY %s", index);
+  }
+
+  public enum LastKeys {
+    AUTO_PURGE(1), VACUUM(2), TELEMETRY(3), LEGACY_POSITIONS(4);
+
+    public final short id;
+    private Long value;
+
+    LastKeys(int id) {
+      this.id = (short) id;
     }
-
-    public void count() {
-        int total = 0;
-        plugin.info("Counting rows..");
-        for (Table table : Table.values()) {
-            if (!table.exists(plugin) || !table.hasAPEntries()) {
-                continue;
-            }
-            try {
-                total += count(table);
-            } catch (BusyException e) {
-                plugin.warning("Database busy, unable to count rows of " + table);
-            } catch (SQLException e) {
-                plugin.warning("An error occurred counting rows of " + table);
-                plugin.print(e);
-            }
-        }
-        plugin.info("Count complete. There are " + total + " rows.");
-        rowcount = total;
-    }
-
-    public int count(Table table) throws SQLException, BusyException {
-        return execute((ConnectionFunction<Integer>) connection -> count(connection, table.toString()), 5000L);
-    }
-
-    public byte[] getBlob(DbEntry entry) throws SQLException, BusyException {
-        if (entry.getAction().getTable().hasBlob()) {
-            return query("SELECT ablob FROM " + entry.getAction().getTable() + " WHERE time=? LIMIT 1", rs -> {
-                if (!rs.next()) return null;
-                return getBlob(rs, 1);
-            }, 10000L, entry.getSnowflake());
-        } else {
-            return getBlobManager(entry.getAction().getTable()).getBlob(entry);
-        }
-    }
-
-    public void getMultipleBlobs(DbEntry... entries) throws SQLException, BusyException {
-        execute(connection -> {
-            Table table = null;
-            StringBuilder stmt = new StringBuilder("SELECT time,ablob FROM %s WHERE time IN (");
-            HashMap<Long, DbEntry> entryHash = new HashMap<>();
-            for (DbEntry entry : entries) {
-                if (table == null) table = entry.getAction().getTable();
-                else if (table != entry.getAction().getTable())
-                    throw new IllegalArgumentException("Incompatible actions");
-                stmt.append(entry.getSnowflake()).append(",");
-                entryHash.put(entry.getSnowflake(), entry);
-            }
-            if (table == null) return;
-            stmt = new StringBuilder(String.format(stmt.substring(0, stmt.length() - 1), table) + ")");
-            query(connection, stmt.toString(), rs -> {
-                while (rs.next()) {
-                    entryHash.get(rs.getLong("time")).setBlob(getBlob(rs, "ablob"));
-                }
-            });
-        }, 30000L);
-    }
-
-    protected void incrementRows() {
-        rowcount++;
-    }
-
-    public void cleanup() {
-        if (usermanager != null) {
-            usermanager.cleanup();
-        }
-        if (invBlobManager != null) {
-            invBlobManager.cleanup();
-        }
-        if (transactionBlobManager != null) {
-            transactionBlobManager.cleanup();
-        }
-    }
-
-    public void tick() {
-        if (!isConnected() || !isConnectedAndInitDone) return;
-        try {
-            execute(this::tickPuts, 0L);
-        } catch (BusyException ignored) {
-        } catch (SQLException e) {
-            plugin.print(e);
-        }
-        cleanup();
-    }
-
-    protected void tickPuts(Connection connection) {
-        Arrays.asList(Table.values()).forEach(t -> {
-            try {
-                put(connection, t, null);
-            } catch (BusyException ignored) {
-                // Only thrown by UID lookups. Shouldn't happen because this thread already has the lock
-            } catch (SQLException e) {
-                plugin.print(e);
-            }
-        });
-    }
-
-    public void setLast(LastKeys key, long value) throws SQLException, BusyException {
-        key.value = value;
-        execute((ConnectionConsumer) connection -> setLast(connection, key, value), 30000L);
-    }
-
-    public void setLast(Connection connection, LastKeys key, long value) throws SQLException {
-        key.value = value;
-        execute(connection, "UPDATE " + Table.AUXPROTECT_LASTS + " SET value=? WHERE name=?", value, key.id);
-    }
-
-    public long getLast(LastKeys key) throws SQLException, BusyException {
-        if (key.value != null) return key.value;
-        return execute((ConnectionFunction<Long>) connection -> getLast(connection, key), 30000L);
-    }
-
-    public long getLast(Connection connection, LastKeys key) throws SQLException {
-        if (key.value != null) return key.value;
-        try (PreparedStatement stmt = connection.prepareStatement("SELECT value FROM " + Table.AUXPROTECT_LASTS + " WHERE name=?")) {
-            stmt.setShort(1, key.id);
-            try (ResultSet rs = stmt.executeQuery()) {
-                if (rs.next()) return rs.getLong(1);
-            }
-            return -1;
-        }
-    }
-
-    @Nullable
-    public String getMigrationStatus() {
-        if (migrationmanager == null) return null;
-        return migrationmanager.getProgressString();
-    }
-
-    protected IAuxProtect getPlugin() {
-        return plugin;
-    }
-
-    public enum LastKeys {
-        AUTO_PURGE(1), VACUUM(2), TELEMETRY(3), LEGACY_POSITIONS(4);
-
-        public final short id;
-        private Long value;
-
-        LastKeys(int id) {
-            this.id = (short) id;
-        }
-    }
-
-    public DbEntry convertToTransactionEntryForMigration(DbEntry entry, EntryAction action, short quantity, double cost, double balance, int target_id2) throws SQLException, BusyException {
-        return null;
-    }
-
-    public String indexedBy(String index) {
-        return String.format(isMySQL() ? "USE INDEX (%s)" : "INDEXED BY %s", index);
-    }
+  }
 }

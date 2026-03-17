@@ -9,220 +9,231 @@ import dev.heliosares.auxprotect.database.EntryAction;
 import dev.heliosares.auxprotect.database.PosEntry;
 import dev.heliosares.auxprotect.database.SpigotDbEntry;
 import dev.heliosares.auxprotect.utils.InvSerialization;
-import jakarta.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import javax.annotation.Nullable;
+import lombok.Getter;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-
 public class APPlayerSpigot extends APPlayer<Player> {
-    private final List<ActivityRecord> activityStack = new ArrayList<>();
-    private ArrayList<Activity> currentActivity;
-    private final Player player;
-    public long lastLoggedMoney;
-    public long lastLoggedInventory;
-    public long lastLoggedInventoryDiff;
-    public long lastLoggedPos;
-    public long lastMoved;
-    public Location lastLocation;
-    public long lastCheckedMovement;
-    private double movedAmountThisMinute;
-    public boolean hasMovedThisMinute;
-    public long lastNotifyInactive;
-    // hotbar, main, armor, offhand, echest
-    private List<ItemStack> invDiffItems;
 
-    public APPlayerSpigot(AuxProtectSpigot plugin, Player player) {
-        super(plugin, player);
+  @Getter
+  private final List<ActivityRecord> activityStack = new ArrayList<>();
+  private final Player player;
+  public long lastLoggedMoney;
+  public long lastLoggedInventory;
+  public long lastLoggedInventoryDiff;
+  public long lastLoggedPos;
+  public long lastMoved;
+  public Location lastLocation;
+  public long lastCheckedMovement;
+  public boolean hasMovedThisMinute;
+  public long lastNotifyInactive;
+  private ArrayList<Activity> currentActivity;
+  private double movedAmountThisMinute;
+  // hotbar, main, armor, offhand, echest
+  private List<ItemStack> invDiffItems;
 
-        this.player = player;
+  public APPlayerSpigot(AuxProtectPaper plugin, Player player) {
+    super(plugin, player);
+
+    this.player = player;
+  }
+
+  @Override
+  public String getName() {
+    return player.getName();
+  }
+
+  public void addActivity(Activity a) {
+    synchronized (activityStack) {
+      if (currentActivity == null) {
+        currentActivity = new ArrayList<>();
+      }
+      currentActivity.add(a);
     }
+  }
 
-    @Override
-    public String getName() {
-        return player.getName();
-    }
-
-    public void addActivity(Activity a) {
-        synchronized (activityStack) {
-            if (currentActivity == null) currentActivity = new ArrayList<>();
-            currentActivity.add(a);
+  public String concludeActivityForMinute() {
+    synchronized (activityStack) {
+      while (activityStack.size() >= 30) {
+        activityStack.remove(0);
+      }
+      ActivityRecord record = null;
+      if (currentActivity != null || movedAmountThisMinute > 1E-6) {
+        if (currentActivity == null) {
+          currentActivity = new ArrayList<>();
         }
+        record = new ActivityRecord(currentActivity, 0, movedAmountThisMinute);
+      }
+      activityStack.add(record);
+      currentActivity = null;
+      movedAmountThisMinute = 0;
+      hasMovedThisMinute = false;
+
+      if (record == null) {
+        return ";0";
+      }
+      return record.toString();
     }
+  }
 
-    public String concludeActivityForMinute() {
-        synchronized (activityStack) {
-            while (activityStack.size() >= 30) {
-                activityStack.remove(0);
-            }
-            ActivityRecord record = null;
-            if (currentActivity != null || movedAmountThisMinute > 1E-6) {
-                if (currentActivity == null) currentActivity = new ArrayList<>();
-                record = new ActivityRecord(currentActivity, 0, movedAmountThisMinute);
-            }
-            activityStack.add(record);
-            currentActivity = null;
-            movedAmountThisMinute = 0;
-            hasMovedThisMinute = false;
+  public void move() {
+    synchronized (activityStack) {
+      Location location = getPlayer().getLocation().clone();
+      if (lastLocation != null && Objects.equals(lastLocation.getWorld(), getPlayer().getWorld())) {
+        movedAmountThisMinute += Math.min(lastLocation.distance(location), 10);
+      }
+      lastLocation = location;
+      lastCheckedMovement = System.currentTimeMillis();
+    }
+  }
 
-            if (record == null) return ";0";
-            return record.toString();
+  public long logInventory(String reason) {
+    if (!reason.equals("quit")) {
+      invDiffItems = getInventory();
+    }
+    try {
+      return logInventory(reason, getPlayer().getLocation(),
+          InvSerialization.playerToByteArray(getPlayer()));
+    } catch (Exception e) {
+      plugin.print(e);
+    }
+    return -1;
+  }
+
+  public long logInventory(String reason, Location loc, byte[] inventory) {
+    DbEntry entry = new SpigotDbEntry(AuxProtectPaper.getLabel(getPlayer()), EntryAction.INVENTORY,
+        false, loc, reason, "");
+    entry.setBlob(inventory);
+    plugin.add(entry);
+
+    lastLoggedInventory = System.currentTimeMillis();
+    return entry.getTime();
+  }
+
+  public synchronized void tickDiffInventory() {
+    lastLoggedInventoryDiff = System.currentTimeMillis();
+    if (invDiffItems == null) {
+      logInventory("diff");
+      return;
+    }
+    List<ItemStack> current = getInventory();
+    for (int i = 0; i < current.size(); i++) {
+      ItemStack newItem = current.get(i);
+      ItemStack oldItem = invDiffItems.get(i);
+      if (newItem == null && oldItem == null) {
+        continue;
+      }
+      boolean similar;
+      boolean sameqty;
+      if (newItem == null || oldItem == null) {
+        similar = false;
+        sameqty = false;
+      } else {
+        similar = newItem.isSimilar(oldItem);
+        sameqty = newItem.getAmount() == oldItem.getAmount();
+      }
+      if (similar && sameqty) {
+        continue;
+      }
+      ItemStack item = null;
+      int qty = -1;
+
+      if (newItem == null) {
+        qty = 0;
+      } else {
+        if (!sameqty) {
+          qty = newItem.getAmount();
         }
-    }
-
-    public void move() {
-        synchronized (activityStack) {
-            Location location = getPlayer().getLocation().clone();
-            if (lastLocation != null && Objects.equals(lastLocation.getWorld(), getPlayer().getWorld())) {
-                movedAmountThisMinute += Math.min(lastLocation.distance(location), 10);
-            }
-            lastLocation = location;
-            lastCheckedMovement = System.currentTimeMillis();
+        if (!similar) {
+          item = newItem.clone();
+          item.setAmount(1);
         }
+      }
+      try {
+        getPlugin().getSqlManager().getInvDiffManager()
+            .logInvDiff(getPlayer().getUniqueId(), i, qty, item);
+      } catch (Exception e) {
+        plugin.print(e);
+        return;
+      }
+      invDiffItems.set(i, newItem);
     }
+  }
 
-    public List<ActivityRecord> getActivityStack() {
-        return activityStack;
+  public void tickDiffPos() {
+  }
+
+  public void logPos(Location location) {
+    logPos(location, false);
+  }
+
+  public void logPreTeleportPos(Location location) {
+    logPos(location, true);
+  }
+
+  public void logPostTeleportPos(Location location) {
+    plugin.add(
+        new PosEntry(AuxProtectPaper.getLabel(getPlayer()), EntryAction.TP, true, location, ""));
+  }
+
+  protected void logPos(Location location, boolean tp) {
+    lastLoggedPos = System.currentTimeMillis();
+    plugin.add(getCurrentPosEntry(location, tp));
+  }
+
+  protected PosEntry getCurrentPosEntry(Location location, boolean tp) {
+    return new PosEntry("$" + getPlayer().getUniqueId(), tp ? EntryAction.TP : EntryAction.POS,
+        false, location, "");
+  }
+
+  private List<ItemStack> getInventory() {
+    List<ItemStack> contents = new ArrayList<>();
+    PlayerInventory playerInventory = getPlayer().getInventory();
+    ItemStack[] array = playerInventory.getStorageContents();
+    for (int i = 9; i < array.length; i++) {
+      ItemStack item = array[i];
+      contents.add(item == null ? null : item.clone());
     }
-
-    public long logInventory(String reason) {
-        if (!reason.equals("quit")) {
-            invDiffItems = getInventory();
-        }
-        try {
-            return logInventory(reason, getPlayer().getLocation(), InvSerialization.playerToByteArray(getPlayer()));
-        } catch (Exception e) {
-            plugin.print(e);
-        }
-        return -1;
+    for (int i = 0; i < 9; i++) {
+      ItemStack item = array[i];
+      contents.add(item == null ? null : item.clone());
     }
-
-    public long logInventory(String reason, Location loc, byte[] inventory) {
-        DbEntry entry = new SpigotDbEntry(AuxProtectSpigot.getLabel(getPlayer()), EntryAction.INVENTORY, false, loc, reason, "");
-        entry.setBlob(inventory);
-        plugin.add(entry);
-
-        lastLoggedInventory = System.currentTimeMillis();
-        return entry.getTime();
+    array = playerInventory.getArmorContents();
+    for (int i = array.length - 1; i >= 0; i--) {
+      ItemStack item = array[i];
+      contents.add(item == null ? null : item.clone());
     }
-
-    public synchronized void tickDiffInventory() {
-        lastLoggedInventoryDiff = System.currentTimeMillis();
-        if (invDiffItems == null) {
-            logInventory("diff");
-            return;
-        }
-        List<ItemStack> current = getInventory();
-        for (int i = 0; i < current.size(); i++) {
-            ItemStack newItem = current.get(i);
-            ItemStack oldItem = invDiffItems.get(i);
-            if (newItem == null && oldItem == null) {
-                continue;
-            }
-            boolean similar;
-            boolean sameqty;
-            if (newItem == null || oldItem == null) {
-                similar = false;
-                sameqty = false;
-            } else {
-                similar = newItem.isSimilar(oldItem);
-                sameqty = newItem.getAmount() == oldItem.getAmount();
-            }
-            if (similar && sameqty) {
-                continue;
-            }
-            ItemStack item = null;
-            int qty = -1;
-
-            if (newItem == null) {
-                qty = 0;
-            } else {
-                if (!sameqty) {
-                    qty = newItem.getAmount();
-                }
-                if (!similar) {
-                    item = newItem.clone();
-                    item.setAmount(1);
-                }
-            }
-            try {
-                getPlugin().getSqlManager().getInvDiffManager().logInvDiff(getPlayer().getUniqueId(), i, qty, item);
-            } catch (Exception e) {
-                plugin.print(e);
-                return;
-            }
-            invDiffItems.set(i, newItem);
-        }
+    for (ItemStack item : playerInventory.getExtraContents()) {
+      contents.add(item == null ? null : item.clone());
     }
-
-    public void tickDiffPos() {
+    for (ItemStack item : getPlayer().getEnderChest()) {
+      contents.add(item == null ? null : item.clone());
     }
+    return contents;
+  }
 
-    public void logPos(Location location) {
-        logPos(location, false);
+  @Nullable
+  @Override
+  public String getIPAddress() {
+    if (player.getAddress() != null) {
+      return player.getAddress().getHostString();
     }
+    return null;
+  }
 
-    public void logPreTeleportPos(Location location) {
-        logPos(location, true);
-    }
+  @Override
+  public SpigotSenderAdapter getSenderAdapter() {
+    return new SpigotSenderAdapter(getPlugin(), player);
+  }
 
-    public void logPostTeleportPos(Location location) {
-        plugin.add(new PosEntry(AuxProtectSpigot.getLabel(getPlayer()), EntryAction.TP, true, location, ""));
-    }
-
-    protected void logPos(Location location, boolean tp) {
-        lastLoggedPos = System.currentTimeMillis();
-        plugin.add(getCurrentPosEntry(location, tp));
-    }
-
-    protected PosEntry getCurrentPosEntry(Location location, boolean tp) {
-        return new PosEntry("$" + getPlayer().getUniqueId(), tp ? EntryAction.TP : EntryAction.POS, false, location, "");
-    }
-
-    private List<ItemStack> getInventory() {
-        List<ItemStack> contents = new ArrayList<>();
-        PlayerInventory playerInventory = getPlayer().getInventory();
-        ItemStack[] array = playerInventory.getStorageContents();
-        for (int i = 9; i < array.length; i++) {
-            ItemStack item = array[i];
-            contents.add(item == null ? null : item.clone());
-        }
-        for (int i = 0; i < 9; i++) {
-            ItemStack item = array[i];
-            contents.add(item == null ? null : item.clone());
-        }
-        array = playerInventory.getArmorContents();
-        for (int i = array.length - 1; i >= 0; i--) {
-            ItemStack item = array[i];
-            contents.add(item == null ? null : item.clone());
-        }
-        for (ItemStack item : playerInventory.getExtraContents()) {
-            contents.add(item == null ? null : item.clone());
-        }
-        for (ItemStack item : getPlayer().getEnderChest()) {
-            contents.add(item == null ? null : item.clone());
-        }
-        return contents;
-    }
-
-    @Nullable
-    @Override
-    public String getIPAddress() {
-        if (player.getAddress() != null) return player.getAddress().getHostString();
-        return null;
-    }
-
-    @Override
-    public SpigotSenderAdapter getSenderAdapter() {
-        return new SpigotSenderAdapter(getPlugin(), player);
-    }
-
-    @Override
-    protected AuxProtectSpigot getPlugin() {
-        return (AuxProtectSpigot) plugin;
-    }
+  @Override
+  protected AuxProtectPaper getPlugin() {
+    return (AuxProtectPaper) plugin;
+  }
 }

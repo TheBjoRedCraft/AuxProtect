@@ -1,63 +1,65 @@
 package dev.heliosares.auxprotect.adapters.location;
 
+import lombok.Getter;
 import org.bukkit.Location;
 import org.bukkit.World;
 
+@Getter
 public class SpigotLocationAdapter extends LocationAdapter {
-    private final Location handle;
 
-    public SpigotLocationAdapter(Location handle) {
-        this.handle = handle;
-    }
+  private final Location handle;
 
-    @Override
-    public String getWorld() {
-        World world = handle.getWorld();
-        if (world == null) return null;
-        return world.getName();
-    }
+  public SpigotLocationAdapter(Location handle) {
+    this.handle = handle;
+  }
 
-    @Override
-    public double getX() {
-        return handle.getX();
-    }
+  @Override
+  public String getWorld() {
+    World world = handle.getWorld();
+      if (world == null) {
+          return null;
+      }
+    return world.getName();
+  }
 
-    @Override
-    public double getY() {
-        return handle.getY();
-    }
+  @Override
+  public double getX() {
+    return handle.getX();
+  }
 
-    @Override
-    public double getZ() {
-        return handle.getZ();
-    }
+  @Override
+  public double getY() {
+    return handle.getY();
+  }
 
-    @Override
-    public int getBlockX() {
-        return handle.getBlockX();
-    }
+  @Override
+  public double getZ() {
+    return handle.getZ();
+  }
 
-    @Override
-    public int getBlockY() {
-        return handle.getBlockY();
-    }
+  @Override
+  public int getBlockX() {
+    return handle.getBlockX();
+  }
 
-    @Override
-    public int getBlockZ() {
-        return handle.getBlockZ();
-    }
+  @Override
+  public int getBlockY() {
+    return handle.getBlockY();
+  }
 
-    @Override
-    public float getPitch() {
-        return handle.getPitch();
-    }
+  @Override
+  public int getBlockZ() {
+    return handle.getBlockZ();
+  }
 
-    @Override
-    public float getYaw() {
-        return handle.getYaw();
-    }
+  @Override
+  public float getPitch() {
+    return handle.getPitch();
+  }
 
-    public Location getHandle() {
-        return handle;
-    }
+  @Override
+  public float getYaw() {
+    return handle.getYaw();
+  }
+
 }
