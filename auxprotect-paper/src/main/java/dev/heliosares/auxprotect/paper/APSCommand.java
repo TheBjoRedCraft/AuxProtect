@@ -12,16 +12,16 @@ import dev.heliosares.auxprotect.paper.commands.TpCommand;
 import java.util.List;
 import javax.annotation.Nonnull;
 import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabExecutor;
 
-public class APSCommand implements CommandExecutor, TabExecutor {
+public class APSCommand extends Command {
 
   private final AuxProtectPaper plugin;
   private final APCommand<CommandSender, AuxProtectPaper, SpigotSenderAdapter> apcommand;
 
   public APSCommand(AuxProtectPaper plugin) {
+    super(plugin.getCommandPrefix(), "AuxProtect main command", "/" + plugin.getCommandPrefix(),
+        List.of(plugin.getCommandAlias()));
     this.plugin = plugin;
     this.apcommand = new APCommand<>(plugin, plugin.getCommandPrefix()) {
       {
@@ -37,16 +37,17 @@ public class APSCommand implements CommandExecutor, TabExecutor {
   }
 
   @Override
-  public boolean onCommand(@Nonnull CommandSender sender, @Nonnull Command command,
-      @Nonnull String label, @Nonnull String[] args) {
+  public boolean execute(@Nonnull CommandSender sender, @Nonnull String label,
+      @Nonnull String[] args) {
     apcommand.onCommand(new SpigotSenderAdapter(plugin, sender), label, args);
     return true;
   }
 
+  @Nonnull
   @Override
-  public List<String> onTabComplete(@Nonnull CommandSender sender, @Nonnull Command command,
-      @Nonnull String label, @Nonnull String[] args) {
-    return apcommand.onTabComplete(new SpigotSenderAdapter(plugin, sender), label, args);
+  public List<String> tabComplete(@Nonnull CommandSender sender, @Nonnull String alias,
+      @Nonnull String[] args) {
+    return apcommand.onTabComplete(new SpigotSenderAdapter(plugin, sender), alias, args);
   }
 
   protected APCommand<CommandSender, AuxProtectPaper, SpigotSenderAdapter> getAPCommand() {
