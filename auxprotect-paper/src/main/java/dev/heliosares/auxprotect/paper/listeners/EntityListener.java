@@ -46,7 +46,6 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.MapMeta;
 import org.bukkit.map.MapRenderer;
 import org.bukkit.projectiles.ProjectileSource;
-import org.bukkit.scheduler.BukkitRunnable;
 
 public class EntityListener implements Listener {
 
@@ -202,15 +201,12 @@ public class EntityListener implements Listener {
   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
   public void entityDamageEvent(EntityDamageEvent e) {
     if (e.getEntity() instanceof Item item) {
-      new BukkitRunnable() {
-
-        @Override
-        public void run() {
-          if (e.getEntity().isDead() || !e.getEntity().isValid()) {
-            itemBreak(plugin, "#" + e.getCause(), item.getItemStack(), item.getLocation());
-          }
-        }
-      }.runTaskLater(plugin, 1);
+      AuxProtectPaper.getMorePaperLib().scheduling().entitySpecificScheduler(e.getEntity())
+          .runDelayed(() -> {
+            if (e.getEntity().isDead() || !e.getEntity().isValid()) {
+              itemBreak(plugin, "#" + e.getCause(), item.getItemStack(), item.getLocation());
+            }
+          }, null, 1);
     }
     if (e.getEntity().isDead()) {
       return;

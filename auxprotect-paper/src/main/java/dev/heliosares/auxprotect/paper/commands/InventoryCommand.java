@@ -125,7 +125,8 @@ public class InventoryCommand<S, P extends IAuxProtect, SA extends SenderAdapter
             TimeUtil.millisToString(System.currentTimeMillis() - inv.basetime()),
             inv.basetime() + "e", inv.numdiff()));
 
-    plugin.runSync(() -> player.openInventory(output));
+    AuxProtectPaper.getMorePaperLib().scheduling().entitySpecificScheduler(player)
+        .run(() -> player.openInventory(output), null);
   }
 
   @Override

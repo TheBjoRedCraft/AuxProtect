@@ -4,6 +4,7 @@ plugins {
     id("java")
     id("de.eldoria.plugin-yml.paper") version "0.8.0"
     id("io.freefair.lombok") version "9.2.0"
+    id("com.gradleup.shadow") version "9.4.0"
 }
 
 paper {
@@ -70,7 +71,7 @@ paper {
 }
 
 repositories {
-    maven { url = uri("https://repo.papermc.io/repository/maven-public/") }
+    maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://repo.minebench.de/")
     maven("https://jitpack.io")
     maven("https://maven.playpro.com")
@@ -78,7 +79,8 @@ repositories {
     maven("https://repo.glaremasters.me/repository/towny/")
     maven("https://repo.olziedev.com/")
     maven("https://repo.nightexpressdev.com/releases")
-    maven { url = uri("https://maven.atownyserver.com/") }
+    maven("https://maven.atownyserver.com/")
+    maven("https://mvn-repo.arim.space/lesser-gpl3/")
 }
 
 dependencies {
@@ -89,6 +91,8 @@ dependencies {
 
     compileOnly("com.acrobot.chestshop:chestshop:3.12.2")
     compileOnly("net.coreprotect:coreprotect:22.4")
+    implementation("io.papermc:paperlib:1.0.7")
+    implementation("space.arim.morepaperlib:morepaperlib:0.4.3")
 
     compileOnly("com.github.MilkBowl:VaultAPI:1.7") {
         exclude(group = "org.bukkit", module = "bukkit")
@@ -112,4 +116,9 @@ dependencies {
 
     implementation("su.nightexpress.excellentcrates:ExcellentCrates:6.5.0")
     implementation("su.nightexpress.nightcore:main:2.10.0")
+}
+
+tasks.shadowJar {
+    relocate("io.papermc:paperlib", "dev.heliosares.auxprotect.lib.paperlib")
+    relocate("space.arim.morepaperlib", "dev.heliosares.auxprotect.lib.morepaperlib")
 }

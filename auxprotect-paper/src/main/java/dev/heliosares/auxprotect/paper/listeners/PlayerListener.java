@@ -13,6 +13,7 @@ import dev.heliosares.auxprotect.paper.AuxProtectPaper;
 import dev.heliosares.auxprotect.utils.InvSerialization;
 import dev.kshl.kshlib.exceptions.BusyException;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -59,7 +60,6 @@ import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.potion.PotionType;
-import org.bukkit.scheduler.BukkitRunnable;
 
 public class PlayerListener implements Listener {
 
@@ -134,17 +134,18 @@ public class PlayerListener implements Listener {
     }
     if (item.getType() == Material.WATER_BUCKET) {
       if (mobs.contains(e.getRightClicked().getType())) {
-        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-          ItemStack newBucket = e.getPlayer().getInventory().getItem(e.getHand());
-          if (!buckets.contains(newBucket.getType())) {
-            newBucket = null;
-          }
-          plugin.add(
-              new SingleItemEntry(AuxProtectPaper.getLabel(e.getPlayer()), EntryAction.BUCKET,
-                  true,
-                  e.getRightClicked().getLocation(), AuxProtectPaper.getLabel(e.getRightClicked()),
-                  "", newBucket));
-        }, 1);
+        AuxProtectPaper.getMorePaperLib().scheduling()
+            .regionSpecificScheduler(e.getRightClicked().getLocation()).runDelayed(() -> {
+              ItemStack newBucket = e.getPlayer().getInventory().getItem(e.getHand());
+              if (!buckets.contains(newBucket.getType())) {
+                newBucket = null;
+              }
+              plugin.add(
+                  new SingleItemEntry(AuxProtectPaper.getLabel(e.getPlayer()), EntryAction.BUCKET,
+                      true,
+                      e.getRightClicked().getLocation(), AuxProtectPaper.getLabel(e.getRightClicked()),
+                      "", newBucket));
+            }, 1);
       }
     }
     if (e.getRightClicked() instanceof final ItemFrame itemFrame) {
@@ -233,7 +234,7 @@ public class PlayerListener implements Listener {
         target = ip;
       }
       logSession(e.getPlayer(), true, target);
-      plugin.getServer().getScheduler().runTaskAsynchronously(plugin, () -> {
+      AuxProtectPaper.getMorePaperLib().scheduling().asyncScheduler().run(() -> {
         try {
           plugin.getSqlManager().getUserManager().updateUsernameAndIP(e.getPlayer().getUniqueId(),
               e.getPlayer().getName(), ip);
@@ -247,13 +248,13 @@ public class PlayerListener implements Listener {
       });
       if (APPermission.LOOKUP.hasPermission(senderAdapter)
           || APPermission.CSLOGS.hasPermission(senderAdapter) && EntryAction.SHOP_CS.isEnabled()) {
-        plugin.getServer().getScheduler().runTaskAsynchronously(plugin, apPlayer::getTimeZone);
+        AuxProtectPaper.getMorePaperLib().scheduling().asyncScheduler().run(apPlayer::getTimeZone);
       }
     }
 
     apPlayer.logInventory("join");
 
-    plugin.getServer().getScheduler().runTaskLaterAsynchronously(plugin, () -> {
+    AuxProtectPaper.getMorePaperLib().scheduling().asyncScheduler().runDelayed(() -> {
       try {
         if (plugin.getSqlManager().getUserManager()
             .getPendingInventory(plugin.getSqlManager().getUserManager()
@@ -288,11 +289,11 @@ public class PlayerListener implements Listener {
 
       e.getPlayer().sendMessage(message.build());
       e.getPlayer().playSound(e.getPlayer().getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1f);
-    }, 40L);
+    }, Duration.ofMillis(2000));
 
     if (plugin.update != null && APPermission.ADMIN.hasPermission(senderAdapter)) {
-      plugin.getServer().getScheduler()
-          .runTaskLater(plugin, () -> plugin.tellAboutUpdate(e.getPlayer()), 20);
+      AuxProtectPaper.getMorePaperLib().scheduling().globalRegionalScheduler()
+          .runDelayed(() -> plugin.tellAboutUpdate(e.getPlayer()), 20);
     }
   }
 
@@ -324,24 +325,20 @@ public class PlayerListener implements Listener {
     }
     final byte[] inventory = inventory_;
 
-    new BukkitRunnable() {
-      @Override
-      public void run() {
-        byte[] newInventory = null;
-        try {
-          newInventory = InvSerialization.playerToByteArray(e.getPlayer());
-        } catch (Exception e1) {
-          plugin.warning("Error serializing inventory for teleport");
-          plugin.print(e1);
-        }
-        if (Arrays.equals(inventory, newInventory)) {
-          return;
-        }
-        apPlayer.logInventory("worldchange", e.getFrom(), inventory);
-        apPlayer.logInventory("worldchange", e.getTo(), newInventory);
+    AuxProtectPaper.getMorePaperLib().scheduling().globalRegionalScheduler().runDelayed(() -> {
+      byte[] newInventory = null;
+      try {
+        newInventory = InvSerialization.playerToByteArray(e.getPlayer());
+      } catch (Exception e1) {
+        plugin.warning("Error serializing inventory for teleport");
+        plugin.print(e1);
       }
-
-    }.runTaskLater(plugin, 3);
+      if (Arrays.equals(inventory, newInventory)) {
+        return;
+      }
+      apPlayer.logInventory("worldchange", e.getFrom(), inventory);
+      apPlayer.logInventory("worldchange", e.getTo(), newInventory);
+    }, 3L);
   }
 
   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

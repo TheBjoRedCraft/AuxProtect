@@ -61,7 +61,8 @@ public class InvCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S, P>
   }
 
   public static void openSync(IAuxProtect plugin, Player player, Inventory inventory) {
-    plugin.runSync(() -> player.openInventory(inventory));
+    AuxProtectPaper.getMorePaperLib().scheduling().entitySpecificScheduler(player)
+        .run(() -> player.openInventory(inventory), null);
   }
 
   public static Inventory makeInventory(IAuxProtect plugin_, Player player, OfflinePlayer target,
@@ -96,7 +97,8 @@ public class InvCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S, P>
                   return;
                 }
                 closed.set(true);
-                plugin.runSync(player::closeInventory);
+                AuxProtectPaper.getMorePaperLib().scheduling().entitySpecificScheduler(player)
+                    .run(() -> player.closeInventory(), null);
                 player.sendMessage(L.COMMAND__LOOKUP__LOOKING.translate());
                 try {
                   update(plugin, player, when);
@@ -108,32 +110,35 @@ public class InvCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S, P>
                   player.sendMessage(L.ERROR.translate());
                   return;
                 }
-                plugin.runSync(() -> {
-                  PlayerInventoryRecord inv_;
-                  inv_ = InvDiffManager.listToPlayerInv(Arrays.asList(mainInv.getContents()),
-                      inv.exp());
+                AuxProtectPaper.getMorePaperLib().scheduling().entitySpecificScheduler(player)
+                    .run(() -> {
+                      PlayerInventoryRecord inv_;
+                      inv_ = InvDiffManager.listToPlayerInv(Arrays.asList(mainInv.getContents()),
+                          inv.exp());
 
-                  targetO.getInventory().setStorageContents(inv_.storage());
-                  targetO.getInventory().setArmorContents(inv_.armor());
-                  targetO.getInventory().setExtraContents(inv_.extra());
-                  try {
-                    Experience.setExp(targetO, inv_.exp());
-                  } catch (Exception e) {
-                    player.sendMessage(L.INV_RECOVER_MENU__XP_ERROR.translate());
-                  }
-                  player.closeInventory();
-                  plugin.broadcast(
-                      L.COMMAND__INV__FORCE_RECOVERED.translate(player.getName(), targetName,
-                          Language.getOptionalS(targetName), ago), APPermission.INV_NOTIFY);
-                  player.sendMessage(
-                      L.COMMAND__INV__SUCCESS.translate(targetName, Language.getOptionalS(targetName)));
-                  targetO.sendMessage(L.COMMAND__INV__NOTIFY_PLAYER.translate(player.getName(),
-                      TimeUtil.millisToString(System.currentTimeMillis() - when)));
-                  targetO.playSound(targetO.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);
-                  plugin.add(
-                      new SpigotDbEntry(AuxProtectPaper.getLabel(player), EntryAction.RECOVER, false,
-                          player.getLocation(), AuxProtectPaper.getLabel(target), "force"));
-                });
+                      targetO.getInventory().setStorageContents(inv_.storage());
+                      targetO.getInventory().setArmorContents(inv_.armor());
+                      targetO.getInventory().setExtraContents(inv_.extra());
+                      try {
+                        Experience.setExp(targetO, inv_.exp());
+                      } catch (Exception e) {
+                        player.sendMessage(L.INV_RECOVER_MENU__XP_ERROR.translate());
+                      }
+                      player.closeInventory();
+                      plugin.broadcast(
+                          L.COMMAND__INV__FORCE_RECOVERED.translate(player.getName(), targetName,
+                              Language.getOptionalS(targetName), ago), APPermission.INV_NOTIFY);
+                      player.sendMessage(
+                          L.COMMAND__INV__SUCCESS.translate(targetName,
+                              Language.getOptionalS(targetName)));
+                      targetO.sendMessage(L.COMMAND__INV__NOTIFY_PLAYER.translate(player.getName(),
+                          TimeUtil.millisToString(System.currentTimeMillis() - when)));
+                      targetO.playSound(targetO.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1, 1);
+                      plugin.add(
+                          new SpigotDbEntry(AuxProtectPaper.getLabel(player), EntryAction.RECOVER,
+                              false,
+                              player.getLocation(), AuxProtectPaper.getLabel(target), "force"));
+                    }, null);
 
               }), L.INV_RECOVER_MENU__BUTTON__FORCE__LABEL.translate(),
               L.INV_RECOVER_MENU__BUTTON__FORCE__HOVER.translateList());
@@ -147,7 +152,8 @@ public class InvCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S, P>
                 return;
               }
               closed.set(true);
-              plugin.runSync(player::closeInventory);
+              AuxProtectPaper.getMorePaperLib().scheduling().entitySpecificScheduler(player)
+                  .run(() -> player.closeInventory(), null);
               ItemStack[] output = new ItemStack[45];
               for (int i = 0; i < output.length; i++) {
                 output[i] = mainInv.getItem(i);

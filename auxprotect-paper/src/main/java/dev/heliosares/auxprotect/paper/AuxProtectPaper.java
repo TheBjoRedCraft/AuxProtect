@@ -78,6 +78,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import space.arim.morepaperlib.MorePaperLib;
 
 public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
 
@@ -87,6 +88,7 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
   @Getter
   private static AuxProtectPaper instance;
   private static SpigotSQLManager sqlManager;
+  private static MorePaperLib morePaperLib;
   final Set<Integer> stackHashHistory = new HashSet<>();
   private final APConfig config = new APConfig();
   private final Set<String> hooks = new HashSet<>();
@@ -131,6 +133,10 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
     return "#null";
   }
 
+  public static MorePaperLib getMorePaperLib() {
+    return morePaperLib;
+  }
+
   public int getCompatabilityVersion() {
     return SERVER_VERSION;
   }
@@ -142,6 +148,7 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
   @Override
   public void onEnable() {
     AuxProtectAPI.setInstance(instance = this);
+    morePaperLib = new MorePaperLib(this);
     this.saveDefaultConfig();
     super.reloadConfig();
     this.getConfig().options().copyDefaults(true);

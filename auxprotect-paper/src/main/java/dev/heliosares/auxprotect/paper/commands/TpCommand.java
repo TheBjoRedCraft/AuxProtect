@@ -1,5 +1,6 @@
 package dev.heliosares.auxprotect.paper.commands;
 
+import com.palmergames.paperlib.PaperLib;
 import dev.heliosares.auxprotect.adapters.sender.PositionedSender;
 import dev.heliosares.auxprotect.adapters.sender.SenderAdapter;
 import dev.heliosares.auxprotect.core.APPermission;
@@ -11,6 +12,9 @@ import dev.heliosares.auxprotect.exceptions.NotPlayerException;
 import dev.heliosares.auxprotect.exceptions.PlatformException;
 import dev.heliosares.auxprotect.exceptions.SyntaxException;
 import java.util.List;
+import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.entity.Entity;
 
 public class TpCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S, P>> extends
     Command<S, P, SA> {
@@ -36,7 +40,8 @@ public class TpCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S, P>>
         pitch = Integer.parseInt(args[5]);
         yaw = Integer.parseInt(args[6]);
       }
-      positionedSender.teleport(args[4], x, y, z, pitch, yaw);
+      PaperLib.teleportAsync((Entity) sender.getSender(),
+          new Location(Bukkit.getWorld(args[4]), x, y, z, pitch, yaw));
     } catch (NumberFormatException | NullPointerException e) {
       throw new SyntaxException();
     } catch (UnsupportedOperationException e) {
