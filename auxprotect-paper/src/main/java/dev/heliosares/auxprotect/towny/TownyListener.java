@@ -41,6 +41,12 @@ public class TownyListener implements Listener {
     this.plugin = plugin;
   }
 
+  private TownyManager townyManager() {
+    // TownyListener is only registered when Towny is present (see AuxProtectPaper.hook()),
+    // which means getTownyHook() will always be a TownyHookImpl when this is called.
+    return ((TownyHookImpl) plugin.getSqlManager().getTownyHook()).getTownyManager();
+  }
+
   private static Location toLoc(Resident res) {
     if (res == null || res.getPlayer() == null) {
       return null;
@@ -68,7 +74,7 @@ public class TownyListener implements Listener {
   private void handleDeleted(String name, boolean nation) {
     int uid;
     try {
-      uid = plugin.getTownyManager().getIDFromName(name, true);
+      uid = townyManager().getIDFromName(name, true);
     } catch (SQLException | BusyException e) {
       plugin.print(e);
       return;
@@ -95,7 +101,7 @@ public class TownyListener implements Listener {
 
   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
   public void on(NewTownEvent e) {
-    plugin.getSqlManager().getTownyManager().updateName(e.getTown(), true);
+    townyManager().updateName(e.getTown(), true);
     try {
       plugin.add(new TownyEntry(AuxProtectPaper.getLabel(e.getTown().getMayor().getPlayer()),
           EntryAction.TOWNCREATE, false, toLoc(e.getTown().getHomeBlock().getWorldCoord()),
@@ -107,7 +113,7 @@ public class TownyListener implements Listener {
 
   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
   public void on(RenameTownEvent e) {
-    plugin.getSqlManager().getTownyManager().updateName(e.getTown(), true);
+    townyManager().updateName(e.getTown(), true);
     plugin.add(
         new TownyEntry(AuxProtectPaper.getLabel(e.getTown().getMayor()), EntryAction.TOWNRENAME,
             false,
@@ -117,7 +123,7 @@ public class TownyListener implements Listener {
 
   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
   public void on(DeleteTownEvent e) {
-    plugin.getSqlManager().getTownyManager().updateName(e.getTownUUID(), e.getTownName(), true);
+    townyManager().updateName(e.getTownUUID(), e.getTownName(), true);
     plugin.add(
         new TownyEntry("$" + e.getMayorUUID(), EntryAction.TOWNDELETE, false, toLoc(e.getMayor()),
             "$t" + e.getTownUUID(), ""));
@@ -191,14 +197,14 @@ public class TownyListener implements Listener {
   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
   public void on(NewNationEvent e) {
     Player king = e.getNation().getKing().getPlayer();
-    plugin.getSqlManager().getTownyManager().updateName(e.getNation(), true);
+    townyManager().updateName(e.getNation(), true);
     plugin.add(new TownyEntry(AuxProtectPaper.getLabel(king), EntryAction.NATIONCREATE, false,
         toLoc(e.getNation().getKing()), TownyManager.getLabel(e.getNation()), null));
   }
 
   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
   public void on(RenameNationEvent e) {
-    plugin.getSqlManager().getTownyManager().updateName(e.getNation(), true);
+    townyManager().updateName(e.getNation(), true);
     Player mayor = e.getNation().getKing().getPlayer();
     plugin.add(new TownyEntry(AuxProtectPaper.getLabel(mayor), EntryAction.NATIONRENAME, false,
         toLoc(e.getNation().getKing()), TownyManager.getLabel(e.getNation()),
@@ -207,7 +213,7 @@ public class TownyListener implements Listener {
 
   @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
   public void on(DeleteNationEvent e) {
-    plugin.getSqlManager().getTownyManager().updateName(e.getNationUUID(), e.getNationName(), true);
+    townyManager().updateName(e.getNationUUID(), e.getNationName(), true);
     plugin.add(
         new TownyEntry(e.getLeader() == null ? "" : ("$" + e.getLeader().getUUID()),
             EntryAction.TOWNDELETE, false, "$t" + e.getNationUUID(), ""));

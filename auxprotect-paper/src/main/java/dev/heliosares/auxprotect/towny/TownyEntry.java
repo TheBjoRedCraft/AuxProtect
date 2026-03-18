@@ -36,7 +36,7 @@ public class TownyEntry extends SpigotDbEntry {
     if (!getUserUUID().startsWith("$t") || getUserUUID().length() != 38) {
       return super.getUser();
     }
-    user = AuxProtectPaper.getInstance().getTownyManager().getNameFromID(getUid(), false);
+    user = AuxProtectPaper.getInstance().getTownyHook().getNameFromID(getUid(), false);
     if (user == null) {
       user = super.getUser();
     }
@@ -51,7 +51,7 @@ public class TownyEntry extends SpigotDbEntry {
     if (!getTargetUUID().startsWith("$t") || getTargetUUID().length() != 38) {
       return super.getTarget();
     }
-    target = AuxProtectPaper.getInstance().getTownyManager().getNameFromID(getTargetId(), false);
+    target = AuxProtectPaper.getInstance().getTownyHook().getNameFromID(getTargetId(), false);
     if (target == null) {
       target = super.getTarget();
     }
