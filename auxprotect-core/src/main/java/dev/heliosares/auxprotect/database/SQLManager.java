@@ -46,10 +46,10 @@ public class SQLManager extends ConnectionManager {
   @Getter
   private final String tablePrefix;
   @Getter
-  private final SQLIDManager.Str uidManager = new SQLIDManager.Str(Table.AUXPROTECT_UIDS.toString(),
-      true);
+  private final SQLIDManager.Str uidManager = new SQLIDManager.Str(this,
+      Table.AUXPROTECT_UIDS.toString(), true);
   @Getter
-  private final SQLIDManager.Str enumIDManager = new SQLIDManager.Str(
+  private final SQLIDManager.Str enumIDManager = new SQLIDManager.Str(this,
       Table.AUXPROTECT_ENUM_IDS.toString(), false);
   int rowcount;
   private MigrationManager migrationmanager;
@@ -244,6 +244,12 @@ public class SQLManager extends ConnectionManager {
       transactionBlobManager.createTable(connection);
     }
 
+    // uidManager and enumIDManager are initialized with 'this' (ConnectionManager) in their field
+    // initializers. If getSQL() were null here it would cause an NPE in SQLIDManager.init().
+    if (uidManager.getSQL() == null || enumIDManager.getSQL() == null) {
+      throw new IllegalStateException(
+          "SQLIDManager SQL reference is null; ConnectionManager was not passed to constructor");
+    }
     uidManager.init(connection);
     enumIDManager.init(connection);
 
