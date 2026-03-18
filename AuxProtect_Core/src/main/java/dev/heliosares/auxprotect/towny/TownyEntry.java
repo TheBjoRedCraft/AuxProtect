@@ -32,7 +32,7 @@ public class TownyEntry extends DbEntry {
         if (!getUserUUID().startsWith("$t") || getUserUUID().length() != 38) {
             return super.getUser();
         }
-        user = SQLManager.getInstance().getTownyManager().getNameFromID(getUid(), false);
+        user = SQLManager.getInstance().getTownyHook().getNameFromID(getUid(), false);
         if (user == null) {
             user = super.getUser();
         }
@@ -47,7 +47,7 @@ public class TownyEntry extends DbEntry {
         if (!getTargetUUID().startsWith("$t") || getTargetUUID().length() != 38) {
             return super.getTarget();
         }
-        target = SQLManager.getInstance().getTownyManager().getNameFromID(getTargetId(), false);
+        target = SQLManager.getInstance().getTownyHook().getNameFromID(getTargetId(), false);
         if (target == null) {
             target = super.getTarget();
         }

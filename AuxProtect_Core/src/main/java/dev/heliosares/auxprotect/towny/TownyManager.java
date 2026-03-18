@@ -45,8 +45,8 @@ public class TownyManager implements Runnable {
 
     public void init() {
         plugin.info("Checking for new towns/nations...");
-        TownyUniverse.getInstance().getTowns().forEach((town) -> sql.getTownyManager().updateName(town, false));
-        TownyUniverse.getInstance().getNations().forEach((nation) -> sql.getTownyManager().updateName(nation, false));
+        TownyUniverse.getInstance().getTowns().forEach((town) -> this.updateName(town, false));
+        TownyUniverse.getInstance().getNations().forEach((nation) -> this.updateName(nation, false));
     }
 
     String getNameFromID(int uid, boolean wait) throws SQLException, BusyException {
