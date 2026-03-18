@@ -10,7 +10,6 @@ import dev.kshl.kshlib.exceptions.BusyException;
 import dev.kshl.kshlib.function.ConnectionConsumer;
 import dev.kshl.kshlib.function.ConnectionFunction;
 import dev.kshl.kshlib.sql.ConnectionManager;
-import dev.kshl.kshlib.sql.SQLIDManager;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import java.io.File;
@@ -46,11 +45,10 @@ public class SQLManager extends ConnectionManager {
   @Getter
   private final String tablePrefix;
   @Getter
-  private final SQLIDManager.Str uidManager = new SQLIDManager.Str(this,
-      Table.AUXPROTECT_UIDS.toString(), true);
+  private final StringIDManager uidManager = new StringIDManager(Table.AUXPROTECT_UIDS.toString());
   @Getter
-  private final SQLIDManager.Str enumIDManager = new SQLIDManager.Str(this,
-      Table.AUXPROTECT_ENUM_IDS.toString(), false);
+  private final StringIDManager enumIDManager = new StringIDManager(
+      Table.AUXPROTECT_ENUM_IDS.toString());
   int rowcount;
   private MigrationManager migrationmanager;
   private boolean isConnected;
@@ -165,9 +163,9 @@ public class SQLManager extends ConnectionManager {
       }
       if (anypurge) {
         try {
-            if (!isMySQL()) {
-                vacuum(connection);
-            }
+          if (!isMySQL()) {
+            vacuum(connection);
+          }
         } catch (SQLException e) {
           plugin.warning(Language.L.COMMAND__PURGE__ERROR.translate());
           plugin.print(e);
@@ -209,9 +207,9 @@ public class SQLManager extends ConnectionManager {
 
   @Nullable
   public String backup() {
-      if (isMySQL()) {
-          return null;
-      }
+    if (isMySQL()) {
+      return null;
+    }
 
     File backup = new File(sqliteFile.getParentFile(),
         "backups/backup-v" + migrationmanager.getVersion() + "-" + System.currentTimeMillis()
@@ -244,12 +242,6 @@ public class SQLManager extends ConnectionManager {
       transactionBlobManager.createTable(connection);
     }
 
-    // uidManager and enumIDManager are initialized with 'this' (ConnectionManager) in their field
-    // initializers. If getSQL() were null here it would cause an NPE in SQLIDManager.init().
-    if (uidManager.getSQL() == null || enumIDManager.getSQL() == null) {
-      throw new IllegalStateException(
-          "SQLIDManager SQL reference is null; ConnectionManager was not passed to constructor");
-    }
     uidManager.init(connection);
     enumIDManager.init(connection);
 
@@ -327,9 +319,9 @@ public class SQLManager extends ConnectionManager {
   }
 
   protected void postTables(Connection connection) throws SQLException {
-      if (getLast(connection, LastKeys.LEGACY_POSITIONS) == 0) {
-          setLast(connection, LastKeys.LEGACY_POSITIONS, System.currentTimeMillis());
-      }
+    if (getLast(connection, LastKeys.LEGACY_POSITIONS) == 0) {
+      setLast(connection, LastKeys.LEGACY_POSITIONS, System.currentTimeMillis());
+    }
   }
 
   public void vacuum(Connection connection) throws SQLException {
@@ -456,19 +448,19 @@ public class SQLManager extends ConnectionManager {
           statement.setString(i.getAndIncrement(), sanitize(dbEntry.getData()));
         }
         if (table.hasBlob()) {
-            if (dbEntry.hasBlob() && dbEntry.getBlob() != null) {
-                statement.setBytes(i.getAndIncrement(), dbEntry.getBlob());
-            } else {
-                statement.setNull(i.getAndIncrement(), Types.NULL);
-            }
+          if (dbEntry.hasBlob() && dbEntry.getBlob() != null) {
+            statement.setBytes(i.getAndIncrement(), dbEntry.getBlob());
+          } else {
+            statement.setNull(i.getAndIncrement(), Types.NULL);
+          }
         } else if (table.hasBlobID()) {
-            if (dbEntry.hasBlob() && dbEntry.getBlob() != null) {
-                long blobid = getBlobManager(table).getBlobId(connection, dbEntry.getBlob(),
-                    dbEntry.getSnowflake());
-                statement.setLong(i.getAndIncrement(), blobid);
-            } else {
-                statement.setNull(i.getAndIncrement(), Types.NULL);
-            }
+          if (dbEntry.hasBlob() && dbEntry.getBlob() != null) {
+            long blobid = getBlobManager(table).getBlobId(connection, dbEntry.getBlob(),
+                dbEntry.getSnowflake());
+            statement.setLong(i.getAndIncrement(), blobid);
+          } else {
+            statement.setNull(i.getAndIncrement(), Types.NULL);
+          }
           if (table.hasItemMeta()) {
             if (!putSingleItemEntry(statement, dbEntry, i)) {
               statement.setNull(i.getAndIncrement(), Types.NULL);
@@ -507,9 +499,9 @@ public class SQLManager extends ConnectionManager {
   }
 
   public int purge(Connection connection, Table table, long time) throws SQLException {
-      if (!isConnected) {
-          return 0;
-      }
+    if (!isConnected) {
+      return 0;
+    }
     if (time < Table.MIN_PURGE_INTERVAL) {
       return 0;
     }
@@ -599,20 +591,20 @@ public class SQLManager extends ConnectionManager {
   public synchronized EntryAction createAction(@Nonnull String plugin, @Nonnull String key,
       @Nonnull String ntext, @Nullable String ptext)
       throws AlreadyExistsException, SQLException, BusyException {
-      if (plugin.isEmpty()) {
-          throw new IllegalArgumentException("plugin cannot be empty.");
-      }
-      if (key.isEmpty()) {
-          throw new IllegalArgumentException("key cannot be empty.");
-      }
-      if (ntext.isEmpty()) {
-          throw new IllegalArgumentException("ntext cannot be empty.");
-      }
+    if (plugin.isEmpty()) {
+      throw new IllegalArgumentException("plugin cannot be empty.");
+    }
+    if (key.isEmpty()) {
+      throw new IllegalArgumentException("key cannot be empty.");
+    }
+    if (ntext.isEmpty()) {
+      throw new IllegalArgumentException("ntext cannot be empty.");
+    }
 
     EntryAction preexisting = EntryAction.getAction(key);
-      if (preexisting != null) {
-          throw new AlreadyExistsException(preexisting);
-      }
+    if (preexisting != null) {
+      throw new AlreadyExistsException(preexisting);
+    }
 
     int pid, nid;
     EntryAction action;
@@ -671,9 +663,9 @@ public class SQLManager extends ConnectionManager {
     if (entry.getAction().getTable().hasBlob()) {
       return query("SELECT ablob FROM " + entry.getAction().getTable() + " WHERE time=? LIMIT 1",
           rs -> {
-              if (!rs.next()) {
-                  return null;
-              }
+            if (!rs.next()) {
+              return null;
+            }
             return getBlob(rs, 1);
           }, 10000L, entry.getSnowflake());
     } else {
@@ -687,17 +679,17 @@ public class SQLManager extends ConnectionManager {
       StringBuilder stmt = new StringBuilder("SELECT time,ablob FROM %s WHERE time IN (");
       HashMap<Long, DbEntry> entryHash = new HashMap<>();
       for (DbEntry entry : entries) {
-          if (table == null) {
-              table = entry.getAction().getTable();
-          } else if (table != entry.getAction().getTable()) {
-              throw new IllegalArgumentException("Incompatible actions");
-          }
+        if (table == null) {
+          table = entry.getAction().getTable();
+        } else if (table != entry.getAction().getTable()) {
+          throw new IllegalArgumentException("Incompatible actions");
+        }
         stmt.append(entry.getSnowflake()).append(",");
         entryHash.put(entry.getSnowflake(), entry);
       }
-        if (table == null) {
-            return;
-        }
+      if (table == null) {
+        return;
+      }
       stmt = new StringBuilder(String.format(stmt.substring(0, stmt.length() - 1), table) + ")");
       query(connection, stmt.toString(), rs -> {
         while (rs.next()) {
@@ -724,9 +716,9 @@ public class SQLManager extends ConnectionManager {
   }
 
   public void tick() {
-      if (!isConnected() || !isConnectedAndInitDone) {
-          return;
-      }
+    if (!isConnected() || !isConnectedAndInitDone) {
+      return;
+    }
     try {
       execute(this::tickPuts, 0L);
     } catch (BusyException ignored) {
@@ -760,23 +752,23 @@ public class SQLManager extends ConnectionManager {
   }
 
   public long getLast(LastKeys key) throws SQLException, BusyException {
-      if (key.value != null) {
-          return key.value;
-      }
+    if (key.value != null) {
+      return key.value;
+    }
     return execute((ConnectionFunction<Long>) connection -> getLast(connection, key), 30000L);
   }
 
   public long getLast(Connection connection, LastKeys key) throws SQLException {
-      if (key.value != null) {
-          return key.value;
-      }
+    if (key.value != null) {
+      return key.value;
+    }
     try (PreparedStatement stmt = connection.prepareStatement(
         "SELECT value FROM " + Table.AUXPROTECT_LASTS + " WHERE name=?")) {
       stmt.setShort(1, key.id);
       try (ResultSet rs = stmt.executeQuery()) {
-          if (rs.next()) {
-              return rs.getLong(1);
-          }
+        if (rs.next()) {
+          return rs.getLong(1);
+        }
       }
       return -1;
     }
@@ -784,9 +776,9 @@ public class SQLManager extends ConnectionManager {
 
   @Nullable
   public String getMigrationStatus() {
-      if (migrationmanager == null) {
-          return null;
-      }
+    if (migrationmanager == null) {
+      return null;
+    }
     return migrationmanager.getProgressString();
   }
 
