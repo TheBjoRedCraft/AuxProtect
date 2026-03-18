@@ -409,39 +409,37 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
   }
 
   protected void initDatabase() {
-    getMorePaperLib().scheduling().asyncScheduler().run(() -> {
-      try {
-        sqlManager.init();
-        if (!config.isSkipRowCount()) {
-          sqlManager.count();
-        }
-      } catch (Exception e) {
-        print(e);
-        getLogger().severe("Failed to connect to SQL database. Disabling.");
-        setEnabled(false);
-        return;
+    try {
+      sqlManager.init();
+      if (!config.isSkipRowCount()) {
+        sqlManager.count();
       }
+    } catch (Exception e) {
+      print(e);
+      getLogger().severe("Failed to connect to SQL database. Disabling.");
+      setEnabled(false);
+      return;
+    }
 
-      long lastloaded = 0;
-      try {
-        lastloaded = sqlManager.getLast(SQLManager.LastKeys.TELEMETRY);
-      } catch (SQLException | BusyException ignored) {
-      }
-      long delay = 15 * 20;
-      if (System.currentTimeMillis() - lastloaded > 1000 * 60 * 60) {
-        debug(
-            "Initializing telemetry. THIS MESSAGE WILL DISPLAY REGARDLESS OF WHETHER BSTATS CONFIG IS ENABLED. THIS DOES NOT INHERENTLY MEAN ITS ENABLED",
-            3);
-      } else {
-        debug(
-            "Delaying telemetry initialization to avoid rate-limiting. THIS MESSAGE WILL DISPLAY REGARDLESS OF WHETHER BSTATS CONFIG IS ENABLED. THIS DOES NOT INHERENTLY MEAN ITS ENABLED",
-            3);
-        delay = (1000 * 60 * 60 - (System.currentTimeMillis() - lastloaded)) / 50;
-      }
+    long lastloaded = 0;
+    try {
+      lastloaded = sqlManager.getLast(SQLManager.LastKeys.TELEMETRY);
+    } catch (SQLException | BusyException ignored) {
+    }
+    long delay = 15 * 20;
+    if (System.currentTimeMillis() - lastloaded > 1000 * 60 * 60) {
+      debug(
+          "Initializing telemetry. THIS MESSAGE WILL DISPLAY REGARDLESS OF WHETHER BSTATS CONFIG IS ENABLED. THIS DOES NOT INHERENTLY MEAN ITS ENABLED",
+          3);
+    } else {
+      debug(
+          "Delaying telemetry initialization to avoid rate-limiting. THIS MESSAGE WILL DISPLAY REGARDLESS OF WHETHER BSTATS CONFIG IS ENABLED. THIS DOES NOT INHERENTLY MEAN ITS ENABLED",
+          3);
+      delay = (1000 * 60 * 60 - (System.currentTimeMillis() - lastloaded)) / 50;
+    }
 
-      AuxProtectPaper.getMorePaperLib().scheduling().globalRegionalScheduler()
-          .runDelayed(() -> Telemetry.init(AuxProtectPaper.this, 14232), delay);
-    });
+    AuxProtectPaper.getMorePaperLib().scheduling().globalRegionalScheduler()
+        .runDelayed(() -> Telemetry.init(AuxProtectPaper.this, 14232), delay);
   }
 
   private boolean hook(Supplier<Listener> listener, String... names) {
@@ -513,16 +511,18 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
   public void onDisable() {
     isShuttingDown = true;
     if (dbRunnable != null) {
-      dbRunnable.add(new DbEntry("#console", EntryAction.PLUGINLOAD, false, "AuxProtect", ""));
-      try {
-        info("Logging final entries... (If you are reloading the plugin, this may cause lag)");
-        sqlManager.markAsShuttingDown();
-        sqlManager.execute((ConnectionConsumer) connection -> dbRunnable.run(true), 3000L);
-      } catch (BusyException e) {
-        warning("Database busy, some entries will be lost.");
-      } catch (SQLException e) {
-        warning("Error while logging final entries, some entries will be lost.");
-        print(e);
+      if (sqlManager != null && sqlManager.isConnected()) {
+        dbRunnable.add(new DbEntry("#console", EntryAction.PLUGINLOAD, false, "AuxProtect", ""));
+        try {
+          info("Logging final entries... (If you are reloading the plugin, this may cause lag)");
+          sqlManager.markAsShuttingDown();
+          sqlManager.execute((ConnectionConsumer) connection -> dbRunnable.run(true), 3000L);
+        } catch (BusyException e) {
+          warning("Database busy, some entries will be lost.");
+        } catch (SQLException e) {
+          warning("Error while logging final entries, some entries will be lost.");
+          print(e);
+        }
       }
       dbRunnable = null;
     }
