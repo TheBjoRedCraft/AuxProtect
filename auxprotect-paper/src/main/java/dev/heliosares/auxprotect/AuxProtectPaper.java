@@ -15,6 +15,7 @@ import dev.heliosares.auxprotect.database.SQLManager;
 import dev.heliosares.auxprotect.database.SpigotDatabaseRunnable;
 import dev.heliosares.auxprotect.database.SpigotSQLManager;
 import dev.heliosares.auxprotect.database.Table;
+import dev.heliosares.auxprotect.database.TownyHook;
 import dev.heliosares.auxprotect.paper.APPlayerSpigot;
 import dev.heliosares.auxprotect.paper.APSCommand;
 import dev.heliosares.auxprotect.paper.Telemetry;
@@ -34,7 +35,6 @@ import dev.heliosares.auxprotect.paper.listeners.ProjectileListener;
 import dev.heliosares.auxprotect.paper.listeners.ShopGUIPlusListener;
 import dev.heliosares.auxprotect.paper.listeners.WorldListener;
 import dev.heliosares.auxprotect.towny.TownyListener;
-import dev.heliosares.auxprotect.towny.TownyManager;
 import dev.heliosares.auxprotect.utils.Pane;
 import dev.heliosares.auxprotect.utils.StackUtil;
 import dev.heliosares.auxprotect.utils.UpdateChecker;
@@ -400,9 +400,7 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
       }
     }
 
-    if (getTownyManager() != null) {
-      getTownyManager().run();
-    }
+    getSqlManager().getTownyHook().run();
 
     if (System.currentTimeMillis() - apPlayer.lastCheckedMovement >= 1000) {
       apPlayer.lastCheckedMovement = System.currentTimeMillis();
@@ -744,8 +742,8 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
     return "ap";
   }
 
-  public TownyManager getTownyManager() {
-    return getSqlManager().getTownyManager();
+  public TownyHook getTownyHook() {
+    return getSqlManager().getTownyHook();
   }
 
   private void checkcommand(String commandlbl) {

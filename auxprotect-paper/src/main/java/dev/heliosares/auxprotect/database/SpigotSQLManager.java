@@ -2,7 +2,6 @@ package dev.heliosares.auxprotect.database;
 
 import dev.heliosares.auxprotect.AuxProtectPaper;
 import dev.heliosares.auxprotect.towny.TownyEntry;
-import dev.heliosares.auxprotect.towny.TownyManager;
 import dev.kshl.kshlib.exceptions.BusyException;
 import java.io.File;
 import java.io.IOException;
@@ -13,7 +12,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class SpigotSQLManager extends SQLManager {
 
-  private final TownyManager townyManager;
+  private final TownyHook townyHook;
   private final InvDiffManager invDiffManager;
 
   public SpigotSQLManager(AuxProtectPaper plugin, String host, String database, String prefix,
@@ -21,9 +20,16 @@ public class SpigotSQLManager extends SQLManager {
       throws ClassNotFoundException, SQLException, IOException {
     super(plugin, host, database, prefix, sqliteFile, user, pass);
 
-    TownyManager _townyManager = null;
+    TownyHook _townyHook = null;
     try {
-      _townyManager = new TownyManager(plugin, this);
+      Class.forName("com.palmergames.bukkit.towny.TownyUniverse");
+      // Towny is present; attempt to load the real integration via reflection
+      // so that TownyHookImpl (which imports Towny types) is never linked
+      // at compile-time by this class.
+      Class<?> hookClass = Class.forName("dev.heliosares.auxprotect.towny.TownyHookImpl");
+      _townyHook = (TownyHook) hookClass
+          .getConstructor(AuxProtectPaper.class, SpigotSQLManager.class)
+          .newInstance(plugin, this);
 
       getLookupManager().addLoader(new EntryLoader(
           data -> data.table() == Table.AUXPROTECT_TOWNY || data.action()
@@ -32,14 +38,15 @@ public class SpigotSQLManager extends SQLManager {
               data.x(), data.y(), data.z(), data.pitch(), data.yaw(), data.target(),
               data.target_id(), data.data())
       ));
-    } catch (ClassNotFoundException e) {
+    } catch (ClassNotFoundException ignored) {
+      // Towny is not installed; Towny logging will be silently disabled.
       plugin.info("Towny not detected");
-    } catch (Throwable e) {
+    } catch (NoClassDefFoundError | ReflectiveOperationException | ClassCastException e) {
       plugin.warning(
           "Failed to initialize TownyManager, Towny will not be logged for this session");
       plugin.print(e);
     }
-    this.townyManager = _townyManager;
+    this.townyHook = _townyHook != null ? _townyHook : new NoopTownyHook();
     this.invDiffManager = new InvDiffManager(this, plugin);
 
     getLookupManager().addLoader(new EntryLoader(
@@ -88,13 +95,11 @@ public class SpigotSQLManager extends SQLManager {
   protected void postInit() throws SQLException {
     super.postInit();
 
-    if (townyManager != null) {
-      townyManager.init();
-    }
+    townyHook.initPostInit();
   }
 
-  public TownyManager getTownyManager() {
-    return townyManager;
+  public TownyHook getTownyHook() {
+    return townyHook;
   }
 
   public InvDiffManager getInvDiffManager() {
@@ -123,9 +128,7 @@ public class SpigotSQLManager extends SQLManager {
     if (invDiffManager != null) {
       invDiffManager.cleanup();
     }
-    if (townyManager != null) {
-      townyManager.cleanup();
-    }
+    townyHook.cleanup();
   }
 
   @Override
