@@ -6,7 +6,6 @@ import dev.heliosares.auxprotect.core.PlatformType;
 import dev.heliosares.auxprotect.exceptions.AlreadyExistsException;
 import dev.heliosares.auxprotect.exceptions.BusyException;
 import dev.heliosares.auxprotect.exceptions.LookupException;
-import dev.heliosares.auxprotect.towny.TownyManager;
 import dev.heliosares.auxprotect.utils.TimeUtil;
 import org.bukkit.Bukkit;
 
@@ -37,7 +36,7 @@ public class SQLManager extends ConnectionPool {
     private final InvDiffManager invDiffManager;
     private final BlobManager invBlobManager;
     private final BlobManager transactionBlobManager;
-    private final TownyManager townyManager;
+    private final TownyHook townyHook;
     private final SQLUserManager usermanager;
     private final String tablePrefix;
     int rowcount;
@@ -65,14 +64,25 @@ public class SQLManager extends ConnectionPool {
             }
             tablePrefix = prefix;
         }
-        TownyManager tm = null;
+        TownyHook hook = null;
         if (plugin.getPlatform() == PlatformType.SPIGOT) {
             try {
-                tm = new TownyManager((dev.heliosares.auxprotect.spigot.AuxProtectSpigot) plugin, this);
-            } catch (NoClassDefFoundError | IllegalStateException | ClassCastException ignored) {
+                Class.forName("com.palmergames.bukkit.towny.TownyUniverse");
+                // Towny is present; attempt to load the real integration via reflection
+                // so that TownyHookImpl (which imports Towny types) is never linked
+                // at compile-time by this class.
+                Class<?> hookClass = Class.forName("dev.heliosares.auxprotect.towny.TownyHookImpl");
+                hook = (TownyHook) hookClass
+                        .getConstructor(dev.heliosares.auxprotect.spigot.AuxProtectSpigot.class, SQLManager.class)
+                        .newInstance((dev.heliosares.auxprotect.spigot.AuxProtectSpigot) plugin, this);
+            } catch (ClassNotFoundException ignored) {
+                // Towny is not installed; Towny logging will be silently disabled.
+            } catch (NoClassDefFoundError | ReflectiveOperationException | ClassCastException e) {
+                plugin.warning("Failed to initialize TownyManager, Towny will not be logged for this session");
+                plugin.print(e);
             }
         }
-        this.townyManager = tm;
+        this.townyHook = hook != null ? hook : new NoopTownyHook();
         this.sqliteFile = sqliteFile;
     }
 
@@ -96,8 +106,8 @@ public class SQLManager extends ConnectionPool {
         return invDiffManager;
     }
 
-    public TownyManager getTownyManager() {
-        return townyManager;
+    public TownyHook getTownyHook() {
+        return townyHook;
     }
 
     public int getCount() {
@@ -173,7 +183,7 @@ public class SQLManager extends ConnectionPool {
             }
         }
 
-        if (townyManager != null) townyManager.init();
+        townyHook.initPostInit();
 
         plugin.info("Init done.");
         isConnectedAndInitDone = true;
@@ -704,9 +714,7 @@ public class SQLManager extends ConnectionPool {
 
     public void cleanup() {
         usermanager.cleanup();
-        if (townyManager != null) {
-            townyManager.cleanup();
-        }
+        townyHook.cleanup();
         if (invDiffManager != null) {
             invDiffManager.cleanup();
         }
