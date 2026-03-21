@@ -110,8 +110,10 @@ public class YamlConfig {
         final DumperOptions options = new DumperOptions();
         options.setDefaultFlowStyle(DumperOptions.FlowStyle.BLOCK);
         options.setPrettyFlow(true);
+        Representer representer = new Representer(options);
+        representer.addClassTag(DataMap.class, Tag.MAP);
         try (FileWriter writer = new FileWriter(file)) {
-            new Yaml(options).dump(data, writer);
+            new Yaml(new Constructor(new LoaderOptions()), representer, options).dump(data, writer);
         }
     }
 
