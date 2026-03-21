@@ -90,7 +90,9 @@ public class Language {
     if (c3 != null) {
       s = s.replace("&t", c3);
     }
-    s = s.replace("$prefix", plugin.getCommandAlias());
+    if (plugin != null) {
+      s = s.replace("$prefix", plugin.getCommandAlias());
+    }
     return ColorTranslator.translateAlternateColorCodes(s);
   }
 
@@ -255,11 +257,11 @@ public class Language {
 
     public String translateSubcategory(String subcategory, @Nullable Object... format) {
       String message = null;
+      String name = this.name;
+      if (subcategory != null && !subcategory.isEmpty()) {
+        name += "." + subcategory.toLowerCase();
+      }
       try {
-        String name = this.name;
-        if (subcategory != null && !subcategory.isEmpty()) {
-          name += "." + subcategory.toLowerCase();
-        }
         if (lang != null) {
           message = lang.getString(name).orElse(null);
         }

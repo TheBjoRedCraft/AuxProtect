@@ -39,7 +39,7 @@ public abstract class SenderAdapter<S, P extends IAuxProtect> {
   public abstract void sendMessage(Component message);
 
   public final void sendMessageRaw(String message) {
-    sendMessageRaw_(message);
+    sendMessageRaw_(Language.convert(message));
   }
 
   protected abstract void sendMessageRaw_(String message);

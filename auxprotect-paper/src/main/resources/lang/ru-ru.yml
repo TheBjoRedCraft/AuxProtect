@@ -207,6 +207,8 @@ actions:
   connect: подключился к
   consume: потратил
   craft: скрафтил
+  crateopen: 'opened crate'
+  cratereward: 'received from crate'
   drop: выкинул
   elytra:
     p: начал лететь

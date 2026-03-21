@@ -233,12 +233,20 @@ public class EntryAction {
                     return overrideNText;
                 }
             }
-            return Language.L.ACTIONS.translateSubcategory(getLang(state));
+            return getActionLangText(state);
         }
         if (overrideNText != null) {
             return overrideNText;
         }
-        return Language.L.ACTIONS.translateSubcategory(getLang(state));
+        return getActionLangText(state);
+    }
+
+    private String getActionLangText(boolean state) {
+        String text = Language.L.ACTIONS.translateSubcategory(getLang(state));
+        if (text.startsWith("[lang:")) {
+            return name;
+        }
+        return text;
     }
 
     private String getLang(boolean state) {

@@ -208,6 +208,8 @@ actions:
   connect: 'connected to'
   consume: 'consumed'
   craft: 'crafted'
+  crateopen: 'opened crate'
+  cratereward: 'received from crate'
   drop: 'dropped'
   elytra:
     p: 'started flying'

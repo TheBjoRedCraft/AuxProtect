@@ -312,7 +312,11 @@ public class SQLManager extends ConnectionManager {
           String ntext = results.getString("ntext");
           String ptext = results.getString("ptext");
           nextActionId = Math.max(nextActionId, Math.max(nid, pid) + 1);
-          new EntryAction(key, nid, pid, ntext, ptext, Table.AUXPROTECT_API);
+          if (pid < 0) {
+            new EntryAction(key, nid, ntext, Table.AUXPROTECT_API);
+          } else {
+            new EntryAction(key, nid, pid, ntext, ptext, Table.AUXPROTECT_API);
+          }
         }
       }
     }

@@ -147,7 +147,7 @@ public class APCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S, P>>
                     sender.sendLang(Language.L.ERROR);
                     plugin.print(e);
                 }
-                sender.sendMessageRaw("Debug " + (verbosity > 0 ? "&aenabled. &7Level: " + verbosity : "&cdisabled."));
+                sender.sendMessageRaw("Debug " + (verbosity > 0 ? "&aenabled. &tLevel: " + verbosity : "&cdisabled."));
                 return;
             } else if (args[0].equalsIgnoreCase("info")) {
                 sendInfo(sender);
@@ -210,11 +210,11 @@ public class APCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S, P>>
     }
 
     private void sendInfo(SA sender) {
-        sender.sendMessageRaw("&9AuxProtect"
-                + (APPermission.ADMIN.hasPermission(sender) ? (" &7v" + plugin.getPluginVersion()) : ""));
-        sender.sendMessageRaw("&7" + Language.L.COMMAND__AP__DEVELOPED_BY.translate() + " &9Heliosares");
+        sender.sendMessageRaw("&pAuxProtect"
+                + (APPermission.ADMIN.hasPermission(sender) ? (" &tv" + plugin.getPluginVersion()) : ""));
+        sender.sendMessageRaw("&t" + Language.L.COMMAND__AP__DEVELOPED_BY.translate() + " &pHeliosares");
         if (APPermission.ADMIN.hasPermission(sender)) {
-            sender.sendMessageRaw("&7&ohttps://www.spigotmc.org/resources/auxprotect.99147/");
+            sender.sendMessageRaw("&t&ohttps://www.spigotmc.org/resources/auxprotect.99147/");
         }
     }
 

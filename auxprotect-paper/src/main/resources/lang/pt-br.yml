@@ -206,6 +206,8 @@ actions:
   connect: conectou a
   consume: consumiu
   craft: craftou
+  crateopen: 'opened crate'
+  cratereward: 'received from crate'
   drop: largou
   elytra:
     p: começou a voar

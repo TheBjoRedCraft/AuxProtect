@@ -372,31 +372,31 @@ public class LookupCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S,
           && plugin.getPlatform().getLevel() == PlatformType.Level.SERVER) {
         boolean negative = countResult.totalMoney < 0;
         countResult.totalMoney = Math.abs(countResult.totalMoney);
-        sender.sendMessageRaw("&fTotal Money: &9" + (negative ? "-" : "") + plugin.formatMoney(
+        sender.sendMessageRaw("&sTotal Money: &p" + (negative ? "-" : "") + plugin.formatMoney(
             countResult.totalMoney));
         if (!countResult.usersForJobsCount.isEmpty()) {
-          sender.sendMessageRaw("    &7" + (negative ? "-" : "") + plugin.formatMoney(
+          sender.sendMessageRaw("    &t" + (negative ? "-" : "") + plugin.formatMoney(
               countResult.totalMoney / countResult.usersForJobsCount.size()) + "/player");
         }
       }
       if (countResult.totalExp != 0) {
         sender.sendMessageRaw(
-            "&fTotal Experience: &9" + Math.round(countResult.totalExp * 100f) / 100f);
+            "&sTotal Experience: &p" + Math.round(countResult.totalExp * 100f) / 100f);
         if (!countResult.usersForJobsCount.isEmpty()) {
           sender.sendMessageRaw(
-              "    &7" + Math.round(countResult.totalExp / countResult.usersForJobsCount.size())
+              "    &t" + Math.round(countResult.totalExp / countResult.usersForJobsCount.size())
                   + "/player");
         }
       }
       String msg = "";
       if (countResult.pickupCount > 0) {
-        msg += "&fPicked up: &9" + countResult.pickupCount + "&7, ";
+        msg += "&sPicked up: &p" + countResult.pickupCount + "&t, ";
       }
       if (countResult.dropCount > 0) {
-        msg += "&fDropped: &9" + countResult.dropCount + "&7, ";
+        msg += "&sDropped: &p" + countResult.dropCount + "&t, ";
       }
       if (countResult.pickupCount > 0 && countResult.dropCount > 0) {
-        msg += "&fNet: &9" + (countResult.pickupCount - countResult.dropCount);
+        msg += "&sNet: &p" + (countResult.pickupCount - countResult.dropCount);
       }
       if (!msg.isEmpty()) {
         sender.sendMessageRaw(msg);

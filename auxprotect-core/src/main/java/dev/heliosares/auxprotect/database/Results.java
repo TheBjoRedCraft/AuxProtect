@@ -92,29 +92,30 @@ public class Results {
     } else {
       TextComponent.Builder builder = Component.text();
       if (time) {
-        entry.timeComponent(timeZone);
+        builder.append(entry.timeComponent(timeZone));
       }
 
-      String actionColor = entry.getAction().hasDual ? (entry.getState() ? "&a+" : "&c-") : "&7-";
-      builder.append(Component.text(" " + actionColor + " ", NamedTextColor.GRAY));
+      NamedTextColor actionColor = entry.getAction().hasDual ? (entry.getState() ? NamedTextColor.GREEN : NamedTextColor.RED) : NamedTextColor.GRAY;
+      String actionSign = entry.getAction().hasDual ? (entry.getState() ? "+" : "-") : "-";
+      builder.append(Component.text(" " + actionSign + " ", actionColor));
       builder.append(Component.text(entry.getUser(), NamedTextColor.BLUE))
           .append(Component.text(" "));
-      builder.append(Component.text(" "));
       builder.append(Component.text(entry.action.getText(entry.state), NamedTextColor.WHITE))
           .append(Component.text(" "));
 
-      if (entry.target != null && !entry.target.isEmpty()) {
-        builder.append(Component.text(entry.getTarget(), NamedTextColor.BLUE))
+      String target = entry.getTarget();
+      if (target != null && !target.isEmpty()) {
+        builder.append(Component.text(target, NamedTextColor.BLUE))
             .append(Component.text(" "));
       }
 
       if (showData) {
-        entry.dataComponent(player);
+        builder.append(entry.dataComponent(player));
       }
-      entry.buttonsComponent(player, commandPrefix, index);
+      builder.append(entry.buttonsComponent(player, commandPrefix, index));
 
       if (entry.getWorld() != null && !entry.getWorld().equals("$null") && coords) {
-        entry.coordinatesComponent(player);
+        builder.append(entry.coordinatesComponent(player));
       }
       player.sendMessage(builder.build());
     }
@@ -125,14 +126,14 @@ public class Results {
   }
 
   public void sendHeader() {
-    String headerColor = "&7";
+    String headerColor = "&t";
     StringBuilder line = new StringBuilder("&m");
     line.append(String.valueOf((char) 65293).repeat(6));
-    line.append("&7");
+    line.append("&t");
     if (new Random().nextDouble() < 0.001) {
-      headerColor = "&f";
+      headerColor = "&s";
     }
-    player.sendMessageRaw(headerColor + line + "  " + Language.L.RESULTS__HEADER + "&7  " + line);
+    player.sendMessageRaw(headerColor + line + "  " + Language.L.RESULTS__HEADER + "&t  " + line);
   }
 
   public void showPage(int page) throws SQLException, BusyException {

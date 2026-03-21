@@ -176,6 +176,8 @@ actions:
   connect: 连接到
   consume: 消耗
   craft: 制作
+  crateopen: 'opened crate'
+  cratereward: 'received from crate'
   drop: 丢弃
   elytra:
     p: 开始飞行
