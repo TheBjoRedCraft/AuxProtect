@@ -113,6 +113,9 @@ public class SQLUserManager {
       if (value.isBlank()) {
           return 0;
       }
+    if (insert) {
+      return sql.execute(connection -> sql.getUidManager().getIDOrInsert(connection, value), 3000L);
+    }
     return sql.getUidManager().getID(value).orElse(-1);
   }
 
@@ -123,6 +126,9 @@ public class SQLUserManager {
       if (value.isBlank()) {
           return 0;
       }
+    if (insert) {
+      return sql.getUidManager().getIDOrInsert(connection, value);
+    }
     return sql.getUidManager().getID(value).orElse(-1);
   }
 
