@@ -3,6 +3,7 @@ package dev.heliosares.auxprotect.database;
 import dev.heliosares.auxprotect.core.IAuxProtect;
 import dev.heliosares.auxprotect.utils.BidiMapCache;
 import dev.kshl.kshlib.exceptions.BusyException;
+import dev.kshl.kshlib.function.ConnectionFunction;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -84,9 +85,9 @@ public class SQLUserManager {
         ORDER BY time DESC
         LIMIT 1
         """, Table.AUXPROTECT_LONGTERM, Table.AUXPROTECT_UIDS), rs -> {
-        if (!rs.next()) {
-            return null;
-        }
+      if (!rs.next()) {
+        return null;
+      }
 
       String username = rs.getString(1);
       plugin.debug("Resolved UID " + uid + " to " + username, 2);
@@ -99,33 +100,34 @@ public class SQLUserManager {
 
   public long getJoinTime(int uid) throws SQLException, BusyException {
     return sql.query("SELECT MIN(time) FROM " + Table.AUXPROTECT_LONGTERM + " WHERE uid=?", rs -> {
-        if (!rs.next()) {
-            return 0L;
-        }
+      if (!rs.next()) {
+        return 0L;
+      }
       return rs.getLong(1);
     }, 3000L, uid) / Snowflake.COUNTER_FACTOR;
   }
 
   public int getUID(String value, boolean insert) throws SQLException, BusyException {
-      if (value == null || value.equalsIgnoreCase("#null")) {
-          return -1;
-      }
-      if (value.isBlank()) {
-          return 0;
-      }
+    if (value == null || value.equalsIgnoreCase("#null")) {
+      return -1;
+    }
+    if (value.isBlank()) {
+      return 0;
+    }
     if (insert) {
-      return sql.execute(connection -> sql.getUidManager().getIDOrInsert(connection, value), 3000L);
+      return sql.execute((ConnectionFunction<Integer>) connection -> sql.getUidManager()
+          .getIDOrInsert(connection, value), 3000L);
     }
     return sql.getUidManager().getID(value).orElse(-1);
   }
 
   public int getUID(Connection connection, String value, boolean insert) throws SQLException {
-      if (value == null || value.equalsIgnoreCase("#null")) {
-          return -1;
-      }
-      if (value.isBlank()) {
-          return 0;
-      }
+    if (value == null || value.equalsIgnoreCase("#null")) {
+      return -1;
+    }
+    if (value.isBlank()) {
+      return 0;
+    }
     if (insert) {
       return sql.getUidManager().getIDOrInsert(connection, value);
     }
@@ -133,14 +135,14 @@ public class SQLUserManager {
   }
 
   public int getUIDFromUsernameID(int nameID) throws SQLException, BusyException {
-      if (nameID <= 0) {
-          return -1;
-      }
+    if (nameID <= 0) {
+      return -1;
+    }
     return sql.query("SELECT uid FROM " + Table.AUXPROTECT_LONGTERM
         + " WHERE target_id=? AND action_id=? ORDER BY time DESC LIMIT 1", rs -> {
-        if (!rs.next()) {
-            return -1;
-        }
+      if (!rs.next()) {
+        return -1;
+      }
       return rs.getInt("uid");
     }, 3000L, nameID, EntryAction.USERNAME.id);
   }
@@ -165,9 +167,9 @@ public class SQLUserManager {
     }
     return sql.query("SELECT pending FROM " + Table.AUXPROTECT_USERDATA_PENDINV + " WHERE uid=?",
         rs -> {
-            if (!rs.next()) {
-                return null;
-            }
+          if (!rs.next()) {
+            return null;
+          }
           return sql.getBlob(rs, "pending");
         }, 3000L, uid);
   }
@@ -187,9 +189,9 @@ public class SQLUserManager {
           sql.execute(connection, "INSERT INTO " + Table.AUXPROTECT_USERDATA_PENDINV
               + " (time, uid, pending) VALUES (?,?,?)", time, uid, blob);
         } catch (SQLException e) {
-            if (!sql.isConstraintViolation(e)) {
-                throw e;
-            }
+          if (!sql.isConstraintViolation(e)) {
+            throw e;
+          }
           sql.execute(connection,
               "UPDATE " + Table.AUXPROTECT_USERDATA_PENDINV + " SET time=?,pending=? WHERE uid=?",
               time, blob, uid);
