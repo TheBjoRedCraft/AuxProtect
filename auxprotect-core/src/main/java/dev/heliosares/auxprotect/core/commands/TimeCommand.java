@@ -65,7 +65,7 @@ public class TimeCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S, P
           throw new SyntaxException();
         }
 
-        builder.append(Component.text(Language.convert("&9" + timeStr + "&f ")));
+        builder.append(Component.text(Language.convert("&p" + timeStr + "&s ")));
 
         if (!exact) {
           builder.append(Component.text(add ? "from now" : "ago"));

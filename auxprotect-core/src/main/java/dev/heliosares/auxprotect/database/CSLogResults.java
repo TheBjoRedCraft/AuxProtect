@@ -29,10 +29,10 @@ public class CSLogResults extends Results {
 
     @Override
     public void sendHeader() {
-        String headerColor = "&7";
+        String headerColor = "&t";
         StringBuilder line = new StringBuilder("&m");
         line.append(String.valueOf((char) 65293).repeat(6));
-        line.append("&7");
-        player.sendMessageRaw(headerColor + line + "  &9ChestShop Logs&7  " + line);
+        line.append("&t");
+        player.sendMessageRaw(headerColor + line + "  &pChestShop Logs&t  " + line);
     }
 }

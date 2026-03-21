@@ -90,7 +90,9 @@ public class Language {
     if (c3 != null) {
       s = s.replace("&t", c3);
     }
-    s = s.replace("$prefix", plugin.getCommandAlias());
+    if (plugin != null) {
+      s = s.replace("$prefix", plugin.getCommandAlias());
+    }
     return ColorTranslator.translateAlternateColorCodes(s);
   }
 
