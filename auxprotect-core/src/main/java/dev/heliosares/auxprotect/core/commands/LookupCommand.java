@@ -27,8 +27,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class LookupCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S, P>> extends
     Command<S, P, SA> {
@@ -49,16 +47,20 @@ public class LookupCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S,
 
   public static List<String> onTabCompleteStatic(IAuxProtect plugin, SenderAdapter<?, ?> sender,
       String[] args) {
+
     List<String> possible = new ArrayList<>();
     String currentArg = args[args.length - 1];
+
     boolean lookup = args[0].equalsIgnoreCase("lookup") || args[0].equalsIgnoreCase("l");
     boolean watch = args[0].equalsIgnoreCase("watch") || args[0].equalsIgnoreCase("w");
+
     if (lookup && !APPermission.LOOKUP.hasPermission(sender)) {
       return null;
     }
     if (watch && !APPermission.WATCH.hasPermission(sender)) {
       return null;
     }
+
     if (args.length == 2) {
       if (lookup) {
         possible.add("next");
@@ -82,57 +84,76 @@ public class LookupCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S,
     possible.add("data:");
     possible.add("before:");
     possible.add("after:");
+
     if (APPermission.LOOKUP_GROUP.hasPermission(sender)) {
       possible.add("group:");
     }
 
-    action_check:
     if (currentArg.startsWith("action:") || currentArg.startsWith("a:")) {
-      Pattern pattern = Pattern.compile("([+-]?\\w+)[,:]");
-      Matcher matcher = pattern.matcher(currentArg);
 
-        if (!matcher.find()) {
-            break action_check;
-        }
-      StringBuilder actionPrefix = new StringBuilder(matcher.group(1) + ":");
+      String prefix;
+      String working = currentArg;
+
+      if (!working.contains(":")) {
+        prefix = "action:";
+        working = "";
+      } else {
+        prefix = working.substring(0, working.indexOf(":") + 1);
+        working = working.substring(prefix.length());
+      }
+
+      String[] parts = working.split(",");
+      String last = parts.length > 0 ? parts[parts.length - 1] : "";
 
       Table table = null;
-      while (matcher.find()) {
-        final String name = matcher.group(1);
-        EntryAction entryAction = EntryAction.getAction(
-            (name.startsWith("+") || name.startsWith("-")) ? name.substring(1) : name);
-          if (entryAction == null) {
-              break action_check;
-          }
-          if (table == null) {
-              table = entryAction.getTable();
-          } else if (entryAction.getTable() != table) {
-              break action_check;
-          }
-        actionPrefix.append(name).append(",");
+
+      for (int i = 0; i < parts.length - 1; i++) {
+        String name = parts[i].replace("+", "").replace("-", "");
+        EntryAction act = EntryAction.getAction(name);
+        if (act == null) {
+          continue;
+        }
+
+        if (table == null) {
+          table = act.getTable();
+        }
+      }
+
+      String base = prefix;
+      if (parts.length > 1 || working.endsWith(",")) {
+        base += String.join(",", parts);
+        if (!working.endsWith(",")) {
+          base += ",";
+        }
       }
 
       for (EntryAction eaction : EntryAction.values()) {
-        if (eaction.exists() && eaction.isEnabled() && eaction.hasPermission(sender) && (
-            table == null || eaction.getTable() == table)) {
-          String actString = eaction.toString().toLowerCase();
-          if (eaction.hasDual) {
-            possible.add(actionPrefix + "+" + actString);
-            possible.add(actionPrefix + "-" + actString);
+        if (!eaction.exists() || !eaction.isEnabled() || !eaction.hasPermission(sender)) {
+          continue;
+        }
+        if (table != null && eaction.getTable() != table) {
+          continue;
+        }
+
+        String act = eaction.toString().toLowerCase();
+
+        if (eaction.hasDual) {
+          if (act.startsWith(last.toLowerCase())) {
+            possible.add(base + "+" + act);
+            possible.add(base + "-" + act);
           }
-          possible.add(actionPrefix + actString);
+        }
+
+        if (act.startsWith(last.toLowerCase())) {
+          possible.add(base + act);
         }
       }
     }
+
     if (currentArg.startsWith("user:") || currentArg.startsWith("u:") || currentArg.startsWith(
         "target:")) {
-      int cutIndex = 0;
-      if (currentArg.contains(",")) {
-        cutIndex = currentArg.lastIndexOf(",");
-      } else {
-        cutIndex = currentArg.indexOf(":");
-
-      }
+      int cutIndex =
+          currentArg.contains(",") ? currentArg.lastIndexOf(",") : currentArg.indexOf(":");
       String user = currentArg.substring(0, cutIndex + 1);
 
       possible.addAll(
@@ -150,6 +171,7 @@ public class LookupCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S,
       }
       possible.add(user + "#env");
     }
+
     if (APPermission.ADMIN.hasPermission(sender)) {
       possible.add("db:");
       if (currentArg.startsWith("db:")) {
@@ -158,6 +180,7 @@ public class LookupCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S,
         }
       }
     }
+
     if (currentArg.matches("(t(ime)?|before|after):\\d+m?")) {
       possible.add(currentArg + "ms");
       possible.add(currentArg + "s");
@@ -166,6 +189,7 @@ public class LookupCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S,
       possible.add(currentArg + "d");
       possible.add(currentArg + "w");
     }
+
     if (plugin.getPlatform().getLevel() == PlatformType.Level.SERVER) {
       if (currentArg.startsWith("world:")) {
         for (String world : plugin.getWorlds()) {
@@ -173,6 +197,7 @@ public class LookupCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S,
         }
       }
     }
+
     if (currentArg.startsWith("rat")) {
       possible.add("rating:");
       if (currentArg.matches("rating:-?")) {
@@ -184,9 +209,9 @@ public class LookupCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S,
 
     for (int i = 1; i < args.length - 1; i++) {
       String arg = args[i];
-        if (!arg.contains(":")) {
-            continue;
-        }
+      if (!arg.contains(":")) {
+        continue;
+      }
       arg = arg.substring(0, arg.indexOf(":") + 1);
       possible.remove(arg);
     }
@@ -204,9 +229,9 @@ public class LookupCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S,
 
   @Override
   public void onCommand(SA sender, String label, String[] args) throws CommandException {
-      if (args.length < 2) {
-          throw new SyntaxException();
-      }
+    if (args.length < 2) {
+      throw new SyntaxException();
+    }
 
     if (!plugin.getSqlManager().isConnected()) {
       sender.sendLang(Language.L.DATABASE_BUSY);
@@ -276,9 +301,9 @@ public class LookupCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S,
           }
         }
       }
-        if (params_ == null) {
-            params_ = Parameters.parse(sender, args);
-        }
+      if (params_ == null) {
+        params_ = Parameters.parse(sender, args);
+      }
 
       // For private fork only
       if (params_.hasFlag(Flag.PLAYBACK) || params_.hasFlag(Flag.INCREMENTAL_POS)) {
