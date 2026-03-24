@@ -1,7 +1,6 @@
 package dev.heliosares.auxprotect.database;
 
 import dev.heliosares.auxprotect.adapters.sender.SenderAdapter;
-import dev.heliosares.auxprotect.api.AuxProtectAPI;
 import dev.heliosares.auxprotect.core.APPermission;
 import java.util.Objects;
 import net.kyori.adventure.text.Component;
@@ -121,11 +120,6 @@ public class PosEntry extends SpigotDbEntry {
   public Component coordinatesComponent(SenderAdapter<?, ?> sender) {
     TextComponent.Builder builder = Component.text();
 
-    String tpCommand = "/" + AuxProtectAPI.getInstance().getCommandPrefix() + " tp ";
-    tpCommand += String.format("%s %s %s", getDoubleX(), getDoubleY(), getDoubleZ());
-    tpCommand += " " + getWorld();
-    tpCommand += String.format(" %d %d", getPitch(), getYaw());
-
     builder.append(Component.newline())
         .append(Component.text("                 ")) // 17 spaces
         .append(Component.text(
@@ -133,8 +127,12 @@ public class PosEntry extends SpigotDbEntry {
             NamedTextColor.GRAY));
 
     if (sender == null || APPermission.TP.hasPermission(sender)) {
-      builder.clickEvent(ClickEvent.runCommand(tpCommand))
-          .hoverEvent(HoverEvent.showText(Component.text(tpCommand, NamedTextColor.GRAY)));
+      builder.clickEvent(ClickEvent.callback((audience) -> {
+                sender.teleport(getDoubleX(), getDoubleY(), getDoubleZ(), getWorld(), getPitch(), getYaw());
+              }
+          ))
+          .hoverEvent(
+              HoverEvent.showText(Component.text("Click to teleport", NamedTextColor.GRAY)));
     }
 
     builder.append(

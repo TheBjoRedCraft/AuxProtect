@@ -48,5 +48,9 @@ public abstract class SenderAdapter<S, P extends IAuxProtect> {
 
   public abstract void executeCommand(String command);
 
+  public abstract void teleport(double x, double y, double z, String world);
+
+  public abstract void teleport(double x, double y, double z, String world, float pitch, float yaw);
+
   public abstract boolean isConsole();
 }

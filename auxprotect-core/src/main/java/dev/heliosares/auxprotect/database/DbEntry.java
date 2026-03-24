@@ -1,7 +1,6 @@
 package dev.heliosares.auxprotect.database;
 
 import dev.heliosares.auxprotect.adapters.sender.SenderAdapter;
-import dev.heliosares.auxprotect.api.AuxProtectAPI;
 import dev.heliosares.auxprotect.core.APPermission;
 import dev.heliosares.auxprotect.core.Language;
 import dev.heliosares.auxprotect.utils.TimeUtil;
@@ -296,15 +295,14 @@ public class DbEntry {
   public Component coordinatesComponent(SenderAdapter<?, ?> sender) {
     TextComponent.Builder builder = Component.text();
 
-    String tp = "/" + AuxProtectAPI.getInstance().getCommandPrefix() + " tp "
-        + String.format("%d.5 %d %d.5 %s", x, y, z, world);
-
     builder.append(Component.newline())
         .append(
             Component.text(String.format("(x%d/y%d/z%d/%s)", x, y, z, world), NamedTextColor.GRAY));
 
     if (sender == null || APPermission.TP.hasPermission(sender)) {
-      builder.clickEvent(ClickEvent.runCommand(tp));
+      builder.clickEvent(ClickEvent.callback((audience) -> {
+        sender.teleport(x + 0.5, y, z + 0.5, world);
+      }));
     }
 
     return builder.build();

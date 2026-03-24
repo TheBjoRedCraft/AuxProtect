@@ -7,7 +7,9 @@ import dev.heliosares.auxprotect.adapters.location.SpigotLocationAdapter;
 import dev.heliosares.auxprotect.exceptions.NotPlayerException;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import net.md_5.bungee.api.chat.BaseComponent;
+import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -60,6 +62,46 @@ public class SpigotSenderAdapter extends SenderAdapter<CommandSender, AuxProtect
   @Override
   public boolean isConsole() {
     return sender.equals(plugin.getServer().getConsoleSender());
+  }
+
+  @Override
+  public void teleport(double x, double y, double z, String world) {
+    World spigotWorld = Bukkit.getWorld(world);
+
+    if (spigotWorld == null) {
+      sender.sendMessage(Component.text("World not found.", NamedTextColor.BLUE));
+      return;
+    }
+
+    Location location = new Location(spigotWorld, x, y, z);
+
+    if (sender instanceof Player player) {
+      player.teleportAsync(location);
+      sender.sendMessage(Component.text("Teleported.", NamedTextColor.BLUE));
+      return;
+    }
+
+    sender.sendMessage(Component.text("Only players can be teleported.", NamedTextColor.RED));
+  }
+
+  @Override
+  public void teleport(double x, double y, double z, String world, float pitch, float yaw) {
+    World spigotWorld = Bukkit.getWorld(world);
+
+    if (spigotWorld == null) {
+      sender.sendMessage(Component.text("World not found.", NamedTextColor.BLUE));
+      return;
+    }
+
+    Location location = new Location(spigotWorld, x, y, z, yaw, pitch);
+
+    if (sender instanceof Player player) {
+      player.teleportAsync(location);
+      sender.sendMessage(Component.text("Teleported.", NamedTextColor.BLUE));
+      return;
+    }
+
+    sender.sendMessage(Component.text("Only players can be teleported.", NamedTextColor.RED));
   }
 
   @Override
