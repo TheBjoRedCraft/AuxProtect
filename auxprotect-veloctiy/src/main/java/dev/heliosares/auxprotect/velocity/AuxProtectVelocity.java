@@ -129,7 +129,7 @@ public final class AuxProtectVelocity implements IAuxProtect {
 
     server.getCommandManager()
         .register(getCommandPrefix(), new APVCommand(this, this.getCommandPrefix()),
-            getCommandAlias(), "apb");
+            getCommandAliases());
     server.getEventManager().register(this, new APVListener(this));
 
     File sqliteFile = null;
@@ -311,8 +311,8 @@ public final class AuxProtectVelocity implements IAuxProtect {
   }
 
   @Override
-  public String getCommandAlias() {
-    return "apv";
+  public String[] getCommandAliases() {
+    return new String[]{"apv", "auxv"};
   }
 
   @Override

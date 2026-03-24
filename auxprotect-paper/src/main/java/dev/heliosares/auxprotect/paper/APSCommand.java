@@ -21,7 +21,7 @@ public class APSCommand extends Command {
 
   public APSCommand(AuxProtectPaper plugin) {
     super(plugin.getCommandPrefix(), "AuxProtect main command", "/" + plugin.getCommandPrefix(),
-        List.of(plugin.getCommandAlias()));
+        List.of(plugin.getCommandAliases()));
     this.plugin = plugin;
     this.apcommand = new APCommand<>(plugin, plugin.getCommandPrefix()) {
       {

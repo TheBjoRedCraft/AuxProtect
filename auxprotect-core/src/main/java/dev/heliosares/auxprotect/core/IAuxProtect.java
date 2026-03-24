@@ -39,7 +39,7 @@ public interface IAuxProtect {
 
   String getCommandPrefix();
 
-  String getCommandAlias();
+  String[] getCommandAliases();
 
   SenderAdapter<?, ?> getConsoleSender();
 

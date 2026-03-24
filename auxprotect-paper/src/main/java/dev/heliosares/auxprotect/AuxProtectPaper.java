@@ -276,7 +276,10 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
 
     AuxProtectPaper.getMorePaperLib().scheduling().globalRegionalScheduler().run(() -> {
       checkcommand("auxprotect");
-      checkcommand(getCommandAlias());
+      for (String commandAlias : getCommandAliases()) {
+        checkcommand(commandAlias);
+      }
+
       checkcommand("claiminv");
     });
 
@@ -738,8 +741,8 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
   }
 
   @Override
-  public String getCommandAlias() {
-    return "ap";
+  public String[] getCommandAliases() {
+    return new String[]{"ap", "aux"};
   }
 
   public TownyHook getTownyHook() {

@@ -5,6 +5,7 @@ import dev.heliosares.auxprotect.utils.YamlConfig;
 import dev.kshl.kshlib.platform.ColorTranslator;
 import jakarta.annotation.Nullable;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -91,7 +92,7 @@ public class Language {
       s = s.replace("&t", c3);
     }
     if (plugin != null) {
-      s = s.replace("$prefix", plugin.getCommandAlias());
+      s = s.replace("$prefix", Arrays.stream(plugin.getCommandAliases()).findFirst().orElse(""));
     }
     return ColorTranslator.translateAlternateColorCodes(s);
   }
