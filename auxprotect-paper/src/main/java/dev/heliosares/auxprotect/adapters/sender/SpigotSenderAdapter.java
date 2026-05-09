@@ -56,7 +56,10 @@ public class SpigotSenderAdapter extends SenderAdapter<CommandSender, AuxProtect
 
   @Override
   public void executeCommand(String command) {
-    plugin.runSync(() -> plugin.getServer().dispatchCommand(sender, command));
+    if (sender instanceof Player player) {
+      AuxProtectPaper.getMorePaperLib().scheduling().entitySpecificScheduler(player)
+          .run(() -> player.performCommand(command), null);
+    }
   }
 
   @Override
