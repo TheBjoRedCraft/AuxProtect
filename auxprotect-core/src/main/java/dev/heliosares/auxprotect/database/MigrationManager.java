@@ -16,7 +16,7 @@ import lombok.Getter;
 
 public class MigrationManager {
 
-  public static final int TARGET_DB_VERSION = 19;
+  public static final int TARGET_DB_VERSION = 20;
   private final SQLManager sql;
   private final Connection connection;
   private final IAuxProtect plugin;
@@ -225,6 +225,35 @@ public class MigrationManager {
               value + "_" + count, id);
         }
       });
+    }, () -> {
+    }));
+
+    //
+    // 20
+    //
+
+    migrationActions.put(20, new MigrationAction(true, () -> {
+      // Drop old indices so they will be recreated with the new optimized column order.
+      // Old UID index: (action_id, uid) → new: (uid, time)
+      for (Table table : Table.values()) {
+        if (!table.hasAPEntries()) {
+          continue;
+        }
+        if (!table.exists(plugin)) {
+          continue;
+        }
+        if (!sql.tableExists(connection, table.toString())) {
+          continue;
+        }
+        sql.execute(connection, sql.getDropIndexStatement(
+            "idx_" + table + "_action_uid", table.toString(), true));
+      }
+      // Old INVDIFF index: (time, uid) → new: (uid, time)
+      if (sql.tableExists(connection, Table.AUXPROTECT_INVDIFF.toString())) {
+        sql.execute(connection, sql.getDropIndexStatement(
+            "idx_" + Table.AUXPROTECT_INVDIFF + "_time_uid",
+            Table.AUXPROTECT_INVDIFF.toString(), true));
+      }
     }, () -> {
     }));
 
