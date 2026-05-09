@@ -41,6 +41,10 @@ public class InvDiffManager extends BlobManager {
         int storageEnd = storage.length; // 36
         int armorEnd = storageEnd + armor.length; // 40
         int extraEnd = armorEnd + extra.length; // 43
+        if (contents == null) {
+            return new PlayerInventoryRecord(storage, armor, extra, new ItemStack[0], exp);
+        }
+        // ender size is dynamic: any slots beyond the fixed player inventory sections
         int enderSize = Math.max(contents.size() - extraEnd, 0);
         ItemStack[] ender = new ItemStack[enderSize];
         for (int i = 0; i < contents.size(); i++) {
