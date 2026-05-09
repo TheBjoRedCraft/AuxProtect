@@ -38,11 +38,15 @@ public class InvDiffManager extends BlobManager {
         ItemStack[] storage = new ItemStack[36];
         ItemStack[] armor = new ItemStack[4];
         ItemStack[] extra = new ItemStack[3];
-        ItemStack[] ender = new ItemStack[27];
         int storageEnd = storage.length; // 36
         int armorEnd = storageEnd + armor.length; // 40
         int extraEnd = armorEnd + extra.length; // 43
-        int enderEnd = extraEnd + ender.length; // 70
+        if (contents == null) {
+            return new PlayerInventoryRecord(storage, armor, extra, new ItemStack[0], exp);
+        }
+        // ender size is dynamic: any slots beyond the fixed player inventory sections
+        int enderSize = Math.max(contents.size() - extraEnd, 0);
+        ItemStack[] ender = new ItemStack[enderSize];
         for (int i = 0; i < contents.size(); i++) {
             ItemStack item = contents.get(i);
             if (i < 27) {
@@ -53,9 +57,9 @@ public class InvDiffManager extends BlobManager {
                 armor[armor.length - (i - storageEnd) - 1] = item;
             } else if (i < extraEnd) {
                 extra[i - armorEnd] = item;
-            } else if (i < enderEnd) {
+            } else {
                 ender[i - extraEnd] = item;
-            } else break;
+            }
         }
         return new PlayerInventoryRecord(storage, armor, extra, ender, exp);
     }

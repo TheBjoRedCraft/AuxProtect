@@ -72,10 +72,12 @@ public class InvCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S, P>
       final String targetName = target.getName() == null ? "unknown" : target.getName();
       Pane enderpane = new Pane(Type.SHOW, player);
 
-      Inventory enderinv = Bukkit.getServer().createInventory(enderpane, 27,
+      int enderRows = Math.max(1, (int) Math.ceil(inv.ender().length / 9.0));
+      int enderInvSize = Math.min(enderRows * 9, 54);
+      Inventory enderinv = Bukkit.getServer().createInventory(enderpane, enderInvSize,
           L.INV_RECOVER_MENU__ENDER_HEADER.translate(targetName, Language.getOptionalS(targetName),
               TimeUtil.millisToString(System.currentTimeMillis() - when)));
-      enderinv.setContents(inv.ender());
+      enderinv.setContents(Arrays.copyOf(inv.ender(), enderInvSize));
 
       Pane pane = new Pane(Type.SHOW, player);
       String ago = TimeUtil.millisToString(System.currentTimeMillis() - when);

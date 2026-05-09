@@ -233,8 +233,8 @@ public enum Table {
     @RequiredArgsConstructor
     public enum Index {
         UID(
-                "idx_%s_action_uid",
-                List.of("action_id", "uid")
+                "idx_%s_uid_time",
+                List.of("uid", "time")
         ),
         TIME(
                 "uidx_%s_time_action",

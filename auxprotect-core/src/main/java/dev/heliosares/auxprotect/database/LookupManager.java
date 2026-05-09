@@ -33,11 +33,11 @@ public class LookupManager {
 
         ArrayList<String> writeparams = new ArrayList<>(Arrays.asList(sqlstmts).subList(1, sqlstmts.length));
         String stmt = "SELECT * FROM " + param.getTable().toString();
-        if (!param.getActions().isEmpty() && plugin.getAPConfig().isIndexing()) {
+        if (plugin.getAPConfig().isIndexing()) {
             Table.Index index = null;
             if (!param.getUsers().isEmpty()) {
                 index = Table.Index.UID;
-            } else if (param.getTable().hasLocation(plugin.getPlatform()) && !param.getRadius().isEmpty() && param.getWorldID() >= 0) {
+            } else if (!param.getActions().isEmpty() && param.getTable().hasLocation(plugin.getPlatform()) && !param.getRadius().isEmpty() && param.getWorldID() >= 0) {
                 index = Table.Index.XZ;
             }
             if (index != null) {

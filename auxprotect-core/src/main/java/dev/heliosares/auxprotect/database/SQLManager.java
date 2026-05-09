@@ -266,8 +266,8 @@ public class SQLManager extends ConnectionManager {
       stmt += " (time BIGINT, uid INT, slot INT, qty INT, blobid BIGINT, damage INT);";
       execute(connection, stmt);
       execute(connection,
-          "CREATE INDEX IF NOT EXISTS idx_" + Table.AUXPROTECT_INVDIFF + "_time_uid ON "
-              + Table.AUXPROTECT_INVDIFF + " (time, uid)");
+          "CREATE INDEX IF NOT EXISTS idx_" + Table.AUXPROTECT_INVDIFF + "_uid_time ON "
+              + Table.AUXPROTECT_INVDIFF + " (uid, time)");
 
       stmt = "CREATE TABLE IF NOT EXISTS " + Table.AUXPROTECT_WORLDS;
       stmt += " (name varchar(255), wid SMALLINT);";
