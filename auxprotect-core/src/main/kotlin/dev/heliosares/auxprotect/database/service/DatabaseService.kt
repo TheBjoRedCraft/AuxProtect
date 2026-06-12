@@ -19,6 +19,15 @@ import org.jetbrains.exposed.sql.transactions.transaction
  *
  * This service coordinates all repositories, manages lifecycle, and provides
  * the bridge between the old Java API and the new Kotlin/Exposed layer.
+ *
+ * Error handling:
+ * - Exposed's transaction {} blocks with automatic rollback on exception
+ * - Configurable retry with exponential backoff for transient failures (in BaseRepository)
+ * - Structured logging for all DB operations
+ *
+ * Shutdown:
+ * - Coroutine cancellation with timeout
+ * - Connection pool graceful drain via HikariCP
  */
 class DatabaseService(
     private val plugin: IAuxProtect,
@@ -51,6 +60,8 @@ class DatabaseService(
         private set
     lateinit var purgeService: PurgeService
         private set
+    lateinit var migrationService: MigrationService
+        private set
 
     // Query builder
     lateinit var queryBuilder: QueryBuilder
@@ -61,15 +72,20 @@ class DatabaseService(
     /**
      * Initializes the database service: connects, creates schema, and initializes all repositories.
      * This should be called once during plugin startup.
+     *
+     * Uses Exposed's SchemaUtils.createMissingTablesAndColumns() for automatic schema creation,
+     * which handles CREATE TABLE IF NOT EXISTS and ADD COLUMN for new columns.
      */
     fun initialize() {
         plugin.info("Initializing Exposed database service...")
+        val startTime = System.currentTimeMillis()
 
-        // Create dispatcher
+        // Create dispatcher with backend-specific thread pool
         dispatcher = DatabaseDispatcher(if (config.isMySQL) 4 else 1)
 
-        // Connect to database
+        // Connect to database via HikariCP
         database = DatabaseFactory.create(config)
+        plugin.debug("HikariCP connection pool established (${if (config.isMySQL) "MySQL" else "SQLite"})")
 
         // Set up schema registry with prefix
         registry = TableRegistry(config.tablePrefix)
@@ -78,6 +94,7 @@ class DatabaseService(
         transaction(database) {
             SchemaUtils.createMissingTablesAndColumns(*registry.getAllTables().toTypedArray())
         }
+        plugin.debug("Schema verification complete")
 
         // Initialize repositories
         entryRepository = EntryRepository(database, registry)
@@ -87,18 +104,26 @@ class DatabaseService(
         worldRepository = WorldRepository(database, registry.worldsTable)
         metadataRepository = MetadataRepository(database, registry.versionTable, registry.lastsTable, registry.migrationTasksTable)
 
-        // Load caches
+        // Load caches from database
         runBlocking {
             stringIdRepository.initialize()
             worldRepository.initialize()
         }
+        plugin.debug("Repository caches loaded")
 
         // Initialize services
         lookupService = LookupService(plugin, database)
         purgeService = PurgeService(plugin, entryRepository, metadataRepository, config.isMySQL)
+        migrationService = MigrationService(plugin, metadataRepository)
 
+        // Run Exposed migration (v21 no-op version bump)
+        runBlocking {
+            migrationService.runExposedMigration()
+        }
+
+        val elapsed = System.currentTimeMillis() - startTime
         initialized = true
-        plugin.info("Exposed database service initialized.")
+        plugin.info("Exposed database service initialized in ${elapsed}ms.")
     }
 
     /**
@@ -110,17 +135,30 @@ class DatabaseService(
 
     /**
      * Shuts down the database service, flushing pending operations and closing connections.
+     * Waits for pending operations to complete with a timeout.
      */
     fun shutdown() {
         if (!initialized) return
 
         plugin.info("Shutting down Exposed database service...")
 
-        // Shutdown dispatcher (waits for pending operations)
-        dispatcher.shutdown(30_000)
+        // Shutdown dispatcher (waits for pending operations with 30s timeout)
+        try {
+            dispatcher.shutdown(30_000)
+            plugin.debug("Database dispatcher shut down")
+        } catch (e: Exception) {
+            plugin.warning("Error shutting down database dispatcher")
+            plugin.print(e)
+        }
 
-        // Close HikariCP connection pool
-        DatabaseFactory.close()
+        // Close HikariCP connection pool (graceful drain)
+        try {
+            DatabaseFactory.close()
+            plugin.debug("HikariCP connection pool closed")
+        } catch (e: Exception) {
+            plugin.warning("Error closing HikariCP pool")
+            plugin.print(e)
+        }
 
         initialized = false
         plugin.info("Exposed database service shut down.")
@@ -143,9 +181,17 @@ class DatabaseService(
 
     /**
      * Cleans up caches across all repositories.
+     * Should be called periodically (e.g., from tick()).
      */
     fun cleanup() {
         blobRepository.cleanup()
         userRepository.cleanup()
+    }
+
+    /**
+     * Gets the migration status string, or null if not migrating.
+     */
+    fun getMigrationStatus(): String? {
+        return migrationService.getProgressString()
     }
 }

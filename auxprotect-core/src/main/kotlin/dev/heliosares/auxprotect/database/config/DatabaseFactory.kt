@@ -7,6 +7,10 @@ import org.jetbrains.exposed.sql.Database
 /**
  * Creates Exposed Database instances from DatabaseConfig.
  * Configures HikariCP datasource with appropriate settings per backend.
+ *
+ * Performance tuning:
+ * - SQLite: single connection (SQLite limitation), WAL mode for concurrent reads
+ * - MySQL/MariaDB: configurable pool (default 10), prepared statement cache
  */
 object DatabaseFactory {
 
@@ -29,10 +33,20 @@ object DatabaseFactory {
                 idleTimeout = 300_000 // 5 minutes
                 maxLifetime = 600_000 // 10 minutes
                 connectionTimeout = 30_000 // 30 seconds
+
+                // Prepared statement cache for MySQL/MariaDB
                 addDataSourceProperty("cachePrepStmts", "true")
                 addDataSourceProperty("prepStmtCacheSize", "250")
                 addDataSourceProperty("prepStmtCacheSqlLimit", "2048")
                 addDataSourceProperty("useServerPrepStmts", "true")
+
+                // MySQL performance tuning
+                addDataSourceProperty("rewriteBatchedStatements", "true")
+                addDataSourceProperty("useLocalSessionState", "true")
+                addDataSourceProperty("cacheResultSetMetadata", "true")
+                addDataSourceProperty("cacheServerConfiguration", "true")
+                addDataSourceProperty("elideSetAutoCommits", "true")
+                addDataSourceProperty("maintainTimeStats", "false")
             } else {
                 // SQLite: single connection, WAL mode
                 maximumPoolSize = 1
@@ -44,6 +58,9 @@ object DatabaseFactory {
 
             poolName = "AuxProtect-HikariPool"
             isAutoCommit = true
+
+            // Leak detection for debugging
+            leakDetectionThreshold = 60_000 // 1 minute
         }
 
         val ds = HikariDataSource(hikariConfig)
@@ -52,7 +69,8 @@ object DatabaseFactory {
     }
 
     /**
-     * Closes the underlying HikariCP datasource if open.
+     * Closes the underlying HikariCP datasource gracefully.
+     * Waits for active connections to finish before closing.
      */
     @JvmStatic
     fun close() {
