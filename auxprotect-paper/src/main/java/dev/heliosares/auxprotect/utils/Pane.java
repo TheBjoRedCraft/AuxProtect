@@ -1,6 +1,5 @@
 package dev.heliosares.auxprotect.utils;
 
-import dev.heliosares.auxprotect.AuxProtectPaper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -33,13 +32,7 @@ public class Pane implements InventoryHolder {
   }
 
   public static void shutdown() {
-    openPanes.forEach(
-        (p) -> AuxProtectPaper.getMorePaperLib().scheduling().entitySpecificScheduler(p.getPlayer())
-            .run(() -> {
-              p.cancelled = true;
-              p.getPlayer().closeInventory();
-            }, () -> {
-            }));
+    openPanes.forEach((p) -> p.cancelled = true);
   }
 
   @Nonnull
