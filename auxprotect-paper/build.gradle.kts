@@ -114,9 +114,6 @@ dependencies {
 
     compileOnly("com.github.Heliosares:AuctionHouseAPI:756e099dff")
     compileOnly("com.olziedev:playerauctions-api:1.27.3")
-
-    implementation("su.nightexpress.excellentcrates:ExcellentCrates:6.5.0")
-    implementation("su.nightexpress.nightcore:main:2.10.0")
 }
 
 tasks.shadowJar {

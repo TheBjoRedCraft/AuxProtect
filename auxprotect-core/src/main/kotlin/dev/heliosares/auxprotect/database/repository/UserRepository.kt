@@ -2,10 +2,12 @@ package dev.heliosares.auxprotect.database.repository
 
 import dev.heliosares.auxprotect.database.EntryAction
 import dev.heliosares.auxprotect.database.Snowflake
+import dev.heliosares.auxprotect.database.schema.AuxProtectLongtermTable
 import dev.heliosares.auxprotect.database.schema.UidsTable
 import dev.heliosares.auxprotect.database.schema.UserDataPendInvTable
-import dev.heliosares.auxprotect.database.schema.AuxProtectLongtermTable
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -26,7 +28,10 @@ class UserRepository(
         const val USERNAME_CACHE_EXPIRY_MS = 300_000L
     }
 
-    private data class CachedUsername(val username: String, val cachedAt: Long = System.currentTimeMillis())
+    private data class CachedUsername(
+        val username: String,
+        val cachedAt: Long = System.currentTimeMillis()
+    )
 
     private val usernameCache = ConcurrentHashMap<Int, CachedUsername>()
 
@@ -65,7 +70,7 @@ class UserRepository(
                 .select(uidsTable.value)
                 .where {
                     (longtermTable.actionId eq EntryAction.USERNAME.id.toShort()) and
-                    (longtermTable.uid eq uid)
+                            (longtermTable.uid eq uid)
                 }
                 .orderBy(longtermTable.time to SortOrder.DESC)
                 .limit(1)
@@ -112,7 +117,7 @@ class UserRepository(
                 .select(longtermTable.uid)
                 .where {
                     (longtermTable.targetId eq nameID) and
-                    (longtermTable.actionId eq EntryAction.USERNAME.id.toShort())
+                            (longtermTable.actionId eq EntryAction.USERNAME.id.toShort())
                 }
                 .orderBy(longtermTable.time to SortOrder.DESC)
                 .limit(1)
@@ -147,10 +152,11 @@ class UserRepository(
                 userDataPendInvTable.deleteWhere { userDataPendInvTable.uid eq uid }
             } else {
                 val time = System.currentTimeMillis()
-                val updated = userDataPendInvTable.update({ userDataPendInvTable.uid eq uid }) { stmt ->
-                    stmt[userDataPendInvTable.time] = time
-                    stmt[userDataPendInvTable.pending] = ExposedBlob(blob)
-                }
+                val updated =
+                    userDataPendInvTable.update({ userDataPendInvTable.uid eq uid }) { stmt ->
+                        stmt[userDataPendInvTable.time] = time
+                        stmt[userDataPendInvTable.pending] = ExposedBlob(blob)
+                    }
                 if (updated == 0) {
                     userDataPendInvTable.insert { stmt ->
                         stmt[userDataPendInvTable.time] = time

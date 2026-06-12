@@ -36,11 +36,11 @@ public class SQLManager extends ConnectionManager {
   public static final int MAX_LOOKUP_SIZE = 500000;
   @Getter
   private static SQLManager instance;
+  @Getter
+  public final LookupManager lookupManager;
   private final IAuxProtect plugin;
   private final HashMap<String, Integer> worlds = new HashMap<>();
   private final File sqliteFile;
-  @Getter
-  private final LookupManager lookupManager;
   private final BlobManager invBlobManager;
   private final BlobManager transactionBlobManager;
   private final SQLUserManager usermanager;
@@ -112,7 +112,38 @@ public class SQLManager extends ConnectionManager {
   @Override
   public void init(Connection connection) throws SQLException {
     timeConnected = System.currentTimeMillis();
-    plugin.info("Connecting to database...");
+
+    try {
+      plugin.info("Initializing Exposed database service...");
+
+      DatabaseConfig dbConfig = DatabaseConfig.fromAPConfig(plugin.getAPConfig(), sqliteFile);
+
+      this.databaseService = new DatabaseService(plugin, dbConfig);
+      databaseService.initialize();
+      databaseService.initializeQueryBuilder(this);
+
+      isConnected = true;
+      isConnectedAndInitDone = true;
+
+      plugin.info("Connected via Exposed!");
+      plugin.info("Init done.");
+
+      return;
+    } catch (Exception e) {
+      plugin.warning(
+          "Failed to initialize Exposed database service layer. Falling back to legacy layer.");
+      plugin.print(e);
+
+      if (databaseService != null) {
+        try {
+          databaseService.shutdown();
+        } catch (Exception ignored) {
+        }
+        databaseService = null;
+      }
+    }
+
+    plugin.info("Connecting to database (legacy mode)...");
 
     try {
       executeTransaction(connection, () -> {
@@ -141,19 +172,6 @@ public class SQLManager extends ConnectionManager {
     isConnected = true;
     plugin.info("Connected!");
 
-    // Initialize Exposed database service layer
-    try {
-      DatabaseConfig dbConfig = DatabaseConfig.fromAPConfig(plugin.getAPConfig(), sqliteFile);
-      this.databaseService = new DatabaseService(plugin, dbConfig);
-      databaseService.initialize();
-      databaseService.initializeQueryBuilder(this);
-    } catch (Exception e) {
-      plugin.warning("Failed to initialize Exposed database service layer. Continuing with legacy layer.");
-      plugin.print(e);
-      this.databaseService = null;
-    }
-
-    // Auto Purge
     out:
     if (plugin.getAPConfig().getAutoPurgePeriodicity() > 0) {
       long timeSincePurge = System.currentTimeMillis() - getLast(connection, LastKeys.AUTO_PURGE);
@@ -162,13 +180,16 @@ public class SQLManager extends ConnectionManager {
             Language.L.COMMAND__PURGE__SKIPAUTO.translate(TimeUtil.millisToString(timeSincePurge)));
         break out;
       }
+
       boolean anypurge = false;
       int count = 0;
+
       for (Table table : Table.values()) {
         if (table.canPurge() && table.exists(plugin)) {
           if (table.getAutoPurgeInterval() >= Table.MIN_PURGE_INTERVAL) {
             anypurge = true;
             plugin.info(Language.L.COMMAND__PURGE__PURGING.translate(table.toString()));
+
             try {
               count += purge(table, table.getAutoPurgeInterval());
             } catch (Exception e) {
@@ -178,6 +199,7 @@ public class SQLManager extends ConnectionManager {
           }
         }
       }
+
       if (anypurge) {
         try {
           if (!isMySQL()) {
@@ -188,6 +210,7 @@ public class SQLManager extends ConnectionManager {
           plugin.print(e);
           break out;
         }
+
         plugin.info(Language.L.COMMAND__PURGE__COMPLETE_COUNT.translate(count));
         setLast(connection, LastKeys.AUTO_PURGE, System.currentTimeMillis());
       }

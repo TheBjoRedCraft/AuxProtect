@@ -2,15 +2,7 @@ package dev.heliosares.auxprotect.database.query
 
 import dev.heliosares.auxprotect.core.IAuxProtect
 import dev.heliosares.auxprotect.core.Parameters
-import dev.heliosares.auxprotect.database.DbEntry
-import dev.heliosares.auxprotect.database.DbEntryGroup
-import dev.heliosares.auxprotect.database.EntryAction
-import dev.heliosares.auxprotect.database.EntryData
-import dev.heliosares.auxprotect.database.EntryLoader
-import dev.heliosares.auxprotect.database.SQLManager
-import dev.heliosares.auxprotect.database.Table
-import java.sql.Connection
-import java.sql.PreparedStatement
+import dev.heliosares.auxprotect.database.*
 import java.sql.ResultSet
 
 /**
@@ -44,13 +36,14 @@ class QueryBuilder(
         val sb = StringBuilder("SELECT * FROM $table")
 
         // Add index hints if enabled
-        if (plugin.apConfig.isIndexing) {
+        if (plugin.apConfig.indexing) {
             val index = when {
                 params.users.isNotEmpty() -> Table.Index.UID
                 params.actions.isNotEmpty() &&
-                    table.hasLocation(plugin.platform) &&
-                    params.radius.isNotEmpty() &&
-                    params.worldID >= 0 -> Table.Index.XZ
+                        table.hasLocation(plugin.platform) &&
+                        params.radius.isNotEmpty() &&
+                        params.worldID >= 0 -> Table.Index.XZ
+
                 else -> null
             }
             if (index != null) {
@@ -113,7 +106,9 @@ class QueryBuilder(
         }
 
         var world: String? = null
-        var x = 0; var y = 0; var z = 0
+        var x = 0;
+        var y = 0;
+        var z = 0
         if (hasLocation) {
             world = sql.getWorld(rs.getInt("world_id"))
             x = rs.getInt("x")
@@ -121,7 +116,8 @@ class QueryBuilder(
             z = rs.getInt("z")
         }
 
-        var pitch = 0; var yaw = 180
+        var pitch = 0;
+        var yaw = 180
         if (hasLook) {
             pitch = rs.getInt("pitch")
             yaw = rs.getInt("yaw")
@@ -142,7 +138,23 @@ class QueryBuilder(
             targetId = rs.getInt("target_id")
         }
 
-        val entryData = EntryData(table, snowflake, uid, entryAction, state, world, x, y, z, pitch, yaw, target, targetId, data, rs)
+        val entryData = EntryData(
+            table,
+            snowflake,
+            uid,
+            entryAction,
+            state,
+            world,
+            x,
+            y,
+            z,
+            pitch,
+            yaw,
+            target,
+            targetId,
+            data,
+            rs
+        )
 
         // Try custom loaders first
         for (loader in loaders) {
@@ -158,7 +170,22 @@ class QueryBuilder(
         }
 
         // Default entry creation
-        val entry = DbEntry(snowflake, uid, entryAction, state, world, x, y, z, pitch, yaw, target, targetId, data, sql)
+        val entry = DbEntry(
+            snowflake,
+            uid,
+            entryAction,
+            state,
+            world,
+            x,
+            y,
+            z,
+            pitch,
+            yaw,
+            target,
+            targetId,
+            data,
+            sql
+        )
         if (table.hasBlobID()) {
             val blobid = rs.getLong("blobid")
             entry.setBlobID(if (rs.wasNull()) -1 else blobid)

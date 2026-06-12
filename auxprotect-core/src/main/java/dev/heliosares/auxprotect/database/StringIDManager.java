@@ -1,6 +1,5 @@
 package dev.heliosares.auxprotect.database;
 
-import jakarta.annotation.Nonnull;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -23,9 +22,6 @@ public class StringIDManager {
   }
 
   public synchronized void init(Connection conn) throws SQLException {
-    if (initDone) {
-      throw new IllegalStateException("Already initialized");
-    }
     try (PreparedStatement stmt = conn.prepareStatement(
         "CREATE TABLE IF NOT EXISTS " + table + " (" +
             "id INTEGER PRIMARY KEY AUTOINCREMENT," +
@@ -46,31 +42,48 @@ public class StringIDManager {
     initDone = true;
   }
 
-  public synchronized int getIDOrInsert(@Nonnull Connection conn, @Nonnull String value)
-      throws SQLException {
-    if (!initDone) {
-      throw new IllegalStateException("Not initialized");
-    }
+  public int getIDOrInsert(Connection conn, String value) throws SQLException {
     String key = value.toLowerCase();
-    if (valueToId.containsKey(key)) {
-      return valueToId.get(key);
+
+    Integer cached = valueToId.get(key);
+    if (cached != null) {
+      return cached;
     }
-    int generatedId;
-    try (PreparedStatement stmt = conn.prepareStatement(
-        "INSERT INTO " + table + " (value) VALUES (?)", PreparedStatement.RETURN_GENERATED_KEYS)) {
-      stmt.setString(1, value);
-      stmt.executeUpdate();
-      try (ResultSet rs = stmt.getGeneratedKeys()) {
-        if (rs.next()) {
-          generatedId = rs.getInt(1);
-        } else {
-          throw new SQLException("Failed to get generated ID");
-        }
+
+    try {
+      try (PreparedStatement stmt = conn.prepareStatement(
+          "INSERT INTO " + table + " (value) VALUES (?)")) {
+        stmt.setString(1, value);
+        stmt.executeUpdate();
+      }
+    } catch (SQLException ex) {
+      if (!isUniqueViolation(ex)) {
+        throw ex;
       }
     }
-    valueToId.put(key, generatedId);
-    idToValue.put(generatedId, value);
-    return generatedId;
+
+    try (PreparedStatement stmt = conn.prepareStatement(
+        "SELECT id FROM " + table + " WHERE value=?")) {
+      stmt.setString(1, value);
+
+      try (ResultSet rs = stmt.executeQuery()) {
+        if (!rs.next()) {
+          throw new SQLException("Failed to resolve id for value " + value);
+        }
+
+        int id = rs.getInt(1);
+
+        valueToId.put(key, id);
+        idToValue.put(id, value);
+
+        return id;
+      }
+    }
+  }
+
+  private boolean isUniqueViolation(SQLException e) {
+    return e.getMessage() != null
+        && e.getMessage().contains("UNIQUE");
   }
 
   public Map<String, Integer> getOrInsertAll(Connection connection, Collection<String> values)

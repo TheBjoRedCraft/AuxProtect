@@ -81,7 +81,8 @@ class DatabaseService(
         val startTime = System.currentTimeMillis()
 
         // Create dispatcher with backend-specific thread pool
-        val dbThreadPoolSize = if (config.isMySQL) config.poolSize.coerceAtMost(config.poolSize) else 1
+        val dbThreadPoolSize =
+            if (config.isMySQL) config.poolSize.coerceAtMost(config.poolSize) else 1
         dispatcher = DatabaseDispatcher(dbThreadPoolSize)
 
         // Connect to database via HikariCP
@@ -93,17 +94,29 @@ class DatabaseService(
 
         // Create missing tables and columns via Exposed
         transaction(database) {
-            SchemaUtils.createMissingTablesAndColumns(*registry.getAllTables().toTypedArray())
+            SchemaUtils.create(*registry.getAllTables().toTypedArray())
         }
         plugin.debug("Schema verification complete")
 
         // Initialize repositories
         entryRepository = EntryRepository(database, registry)
-        blobRepository = BlobRepository(database, registry.invBlobTable, registry.transactionsBlobTable)
+        blobRepository =
+            BlobRepository(database, registry.invBlobTable, registry.transactionsBlobTable)
         stringIdRepository = StringIdRepository(database, registry.uidsTable, registry.enumIdsTable)
-        userRepository = UserRepository(database, registry.longtermTable, registry.uidsTable, registry.userDataPendInvTable, stringIdRepository)
+        userRepository = UserRepository(
+            database,
+            registry.longtermTable,
+            registry.uidsTable,
+            registry.userDataPendInvTable,
+            stringIdRepository
+        )
         worldRepository = WorldRepository(database, registry.worldsTable)
-        metadataRepository = MetadataRepository(database, registry.versionTable, registry.lastsTable, registry.migrationTasksTable)
+        metadataRepository = MetadataRepository(
+            database,
+            registry.versionTable,
+            registry.lastsTable,
+            registry.migrationTasksTable
+        )
 
         // Load caches from database
         runBlocking {

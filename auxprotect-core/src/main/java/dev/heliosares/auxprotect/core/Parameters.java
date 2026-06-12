@@ -15,8 +15,6 @@ import dev.heliosares.auxprotect.exceptions.ParseException;
 import dev.heliosares.auxprotect.utils.TimeUtil;
 import dev.kshl.kshlib.exceptions.BusyException;
 import jakarta.annotation.Nullable;
-import lombok.Getter;
-
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,985 +24,1009 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import lombok.Getter;
 
 @SuppressWarnings({"UnusedReturnValue", "unused"})
 public class Parameters implements Cloneable {
 
-    // ----------------------------------------------
-    // ------------------- FIELDS -------------------
-    // ----------------------------------------------
-    public final long time_created = System.currentTimeMillis();
-    private final IAuxProtect plugin;
-    @Getter
-    private final Set<Long> exactTime = new HashSet<>();
-    private final Set<String> uids = new HashSet<>();
-    @Getter
-    private final Set<String> targets = new HashSet<>();
-    @Getter
-    private final Set<String> users = new HashSet<>();
-    // action
-    @Getter
-    private final Set<Integer> actions = new HashSet<>();
-    @Getter
-    private final Set<String> datas = new HashSet<>();
-    // radius
-    @Getter
-    private final HashMap<Integer, Boolean> radius = new HashMap<>();
-    private final Set<Integer> worlds = new HashSet<>();
-    // flags
-    @Getter
-    private final Set<Flag> flags = new HashSet<>();
-    // ratings
-    @Getter
-    private final Set<Short> ratings = new HashSet<>();
-    // user
-    @Getter
-    boolean negateUser;
-    // target
-    @Getter
-    boolean negateTarget;
-    // data
-    @Getter
-    boolean negateData;
-    // world
-    @Getter
-    boolean negateWorld;
-    // time
-    @Getter
-    private long after;
-    @Getter
-    private long before = Long.MAX_VALUE;
-    // table
-    @Getter
-    private Table table;
-    private int world;
-    @Getter
-    private int x;
-    @Getter
-    private int y;
-    @Getter
-    private int z;
-    @Getter
-    private double groupRange;
+  // ----------------------------------------------
+  // ------------------- FIELDS -------------------
+  // ----------------------------------------------
+  public final long time_created = System.currentTimeMillis();
+  public final IAuxProtect plugin;
+  @Getter
+  public final Set<Long> exactTime = new HashSet<>();
+  public final Set<String> uids = new HashSet<>();
+  @Getter
+  public final Set<String> targets = new HashSet<>();
+  @Getter
+  public final Set<String> users = new HashSet<>();
+  // flags
+  @Getter
+  public final Set<Flag> flags = new HashSet<>();
+  // ratings
+  @Getter
+  public final Set<Short> ratings = new HashSet<>();
+  // action
+  @Getter
+  public final Set<Integer> actions = new HashSet<>();
+  // radius
+  @Getter
+  public final HashMap<Integer, Boolean> radius = new HashMap<>();
+  public final Set<Integer> worlds = new HashSet<>();
+  @Getter
+  private final Set<String> datas = new HashSet<>();
+  // table
+  @Getter
+  public Table table;
+  // user
+  @Getter
+  boolean negateUser;
+  // target
+  @Getter
+  boolean negateTarget;
+  // data
+  @Getter
+  boolean negateData;
+  // world
+  @Getter
+  boolean negateWorld;
+  // time
+  @Getter
+  private long after;
+  @Getter
+  private long before = Long.MAX_VALUE;
+  private int world;
+  @Getter
+  private int x;
+  @Getter
+  private int y;
+  @Getter
+  private int z;
+  @Getter
+  private double groupRange;
 
-    // ----------------------------------------------------
-    // ------------------- CONSTRUCTORS -------------------
-    // ----------------------------------------------------
+  // ----------------------------------------------------
+  // ------------------- CONSTRUCTORS -------------------
+  // ----------------------------------------------------
 
-    private Parameters() {
-        plugin = AuxProtectAPI.getInstance();
-    }
+  private Parameters() {
+    plugin = AuxProtectAPI.getInstance();
+  }
 
-    public Parameters(Table table) {
-        this();
-        this.table = table;
-    }
+  public Parameters(Table table) {
+    this();
+    this.table = table;
+  }
 
-    // -----------------------------------------------
-    // ---------------- COMMAND BASED ----------------
-    // -----------------------------------------------
+  // -----------------------------------------------
+  // ---------------- COMMAND BASED ----------------
+  // -----------------------------------------------
 
-    /**
-     * This method is used by the lookup command to parse commands. This may be used
-     * by an API by manually creating a String[] args
-     *
-     * @param sender The player sending the command. Used for permission checks. Null to bypass
-     * @param args   Arguments of the command.
-     */
-    public static Parameters parse(@Nullable SenderAdapter sender, String[] args)
-            throws ParseException, LookupException {
-        IAuxProtect plugin = AuxProtectAPI.getInstance();
-        Parameters parameters = new Parameters();
-        int count = 0;
-        String datastr = null;
-        String targetstr = null;
-        for (int i = 1; i < args.length; i++) {
-            String line = args[i];
-            if (line.startsWith("#")) {
-                Flag flag = null;
-                try {
-                    flag = Flag.valueOf(line.toUpperCase().substring(1).replaceAll("-", "_"));
-                } catch (Exception ignored) {
-                }
-                if (flag != null) {
-                    if (sender != null && !flag.hasPermission(sender)) {
-                        throw new ParseException(Language.L.NO_PERMISSION_FLAG);
-                    }
-                    if (!flag.isEnabled()) {
-                        throw new ParseException(Language.L.ACTION_DISABLED);
-                    }
-                    if (flag == Flag.ONLY_USER2 && parameters.table != Table.AUXPROTECT_TRANSACTIONS) {
-                        throw new ParseException(Language.L.COMMAND__LOOKUP__WRONG_FLAG, flag.toString().toLowerCase(), parameters.table);
-                    }
-                    parameters.flags.add(flag);
-                    continue;
-                }
-            }
-            String[] split = line.split(":");
-
-            String token = split[0].toLowerCase();
-            token = replaceAlias(token, "a", "action");
-            token = replaceAlias(token, "t", "time");
-            token = replaceAlias(token, "u", "user");
-            token = replaceAlias(token, "r", "radius");
-            token = replaceAlias(token, "w", "world");
-            token = replaceAlias(token, "a", "action");
-            token = replaceAlias(token, "g", "group");
-
-            if (split.length == 2) {
-                String param = split[1];
-                count++;
-                switch (token) {
-                    case "user" -> parameters.user(param);
-                    case "target" -> targetstr = param;
-                    case "data" -> datastr = param;
-                    case "action" -> parameters.action(sender, param);
-                    case "before" -> parameters.time(param, true);
-                    case "after" -> parameters.time(param, false);
-                    case "time" -> parameters.time(param);
-                    case "radius" -> {
-                        if (sender == null)
-                            throw new ParseException(L.NOTPLAYERERROR);
-                        if (sender.getPlatform().getLevel() != PlatformType.Level.SERVER)
-                            throw new ParseException(L.INVALID_PARAMETER, line);
-                        if (sender instanceof PositionedSender positionedSender) {
-                            try {
-                                parameters.setLocation(
-                                        positionedSender.getLocation().getWorld(),
-                                        positionedSender.getLocation().getBlockX(),
-                                        positionedSender.getLocation().getBlockY(),
-                                        positionedSender.getLocation().getBlockZ()
-                                );
-                            } catch (NotPlayerException e) {
-                                throw new ParseException(L.NOTPLAYERERROR);
-                            }
-                            parameters.radius(param);
-                        } else {
-                            throw new ParseException(L.NOTPLAYERERROR);
-                        }
-                    }
-                    case "world" -> parameters.world(param);
-                    case "rating" -> {
-                        for (String str : param.split(",")) {
-                            try {
-                                parameters.ratings.add(Short.parseShort(str));
-                            } catch (NumberFormatException e) {
-                                throw new ParseException(L.INVALID_PARAMETER, line);
-                            }
-                        }
-                    }
-                    case "db" -> {
-                        if (!APPermission.ADMIN.hasPermission(sender)) {
-                            throw new ParseException(L.NO_PERMISSION);
-                        }
-                        try {
-                            parameters.table = Table.valueOf(param.toUpperCase());
-                        } catch (Exception e) {
-                            throw new ParseException(L.INVALID_PARAMETER, line);
-                        }
-                    }
-                    case "group" -> {
-                        if (!APPermission.LOOKUP_GROUP.hasPermission(sender)) {
-                            throw new ParseException(L.NO_PERMISSION);
-                        }
-                        double groupRange = 0;
-                        try {
-                            groupRange = Double.parseDouble(param);
-                        } catch (NumberFormatException ignored) {
-                        }
-                        if (groupRange <= 0) {
-                            throw new ParseException(L.INVALID_PARAMETER, line);
-                        }
-                        parameters.group(groupRange);
-                    }
-                    default -> throw new ParseException(L.INVALID_PARAMETER, line);
-                }
-            }
-
-        }
-        if (count < 1) {
-            throw new ParseException(Language.L.INVALID_NOTENOUGH);
-        }
-
-        parameters.target(targetstr);
-        parameters.data(datastr);
-
-        if (parameters.actions.isEmpty() || parameters.table == null) {
-            for (EntryAction action : EntryAction.values()) {
-                if (action.getTable() == Table.AUXPROTECT_MAIN
-                        && !APPermission.LOOKUP_ACTION.dot(action.toString().toLowerCase()).hasPermission(sender)) {
-                    throw new ParseException(Language.L.COMMAND__LOOKUP__ACTION_NONE);
-                }
-            }
-            parameters.table = Table.AUXPROTECT_MAIN;
-        }
-        if (!parameters.datas.isEmpty() && (parameters.actions.contains(EntryAction.SESSION.id) || parameters.actions.contains(EntryAction.SESSION.idPos))) {
-            if (!APPermission.LOOKUP_ACTION.dot(EntryAction.SESSION.toString().toLowerCase()).dot("ip").hasPermission(sender)) {
-                throw new ParseException(Language.L.COMMAND__LOOKUP__ACTION_NONE);
-            }
-        }
-        if (parameters.flags.contains(Flag.COMBINE_USER_TARGET)) {
-            parameters.uids.addAll(parameters.targets);
-            parameters.targets.addAll(parameters.uids);
-        }
-        if (parameters.flags.contains(Flag.ACTIVITY) || parameters.flags.contains(Flag.PLAYTIME)) {
-            if (parameters.users.size() > 1) {
-                throw new ParseException(Language.L.COMMAND__LOOKUP__PLAYTIME__TOOMANYUSERS);
-            } else if (parameters.uids.isEmpty()) {
-                throw new ParseException(Language.L.COMMAND__LOOKUP__PLAYTIME__NOUSER);
-            }
-        }
-        if (parameters.flags.contains(Flag.PLAYTIME)) {
-            parameters.actions.clear();
-            parameters.actions.add(EntryAction.SESSION.id);
-            parameters.actions.add(EntryAction.SESSION.idPos);
-        }
-        if (parameters.flags.contains(Flag.ACTIVITY)) {
-            parameters.actions.clear();
-            parameters.actions.add(EntryAction.ACTIVITY.id);
-            parameters.actions.add(EntryAction.ACTIVITY.idPos);
-        }
-        if (parameters.hasFlag(Flag.PLAYBACK)) {
-            if (plugin.getPlatform().getLevel() != PlatformType.Level.SERVER || sender == null)
-                throw new ParseException(L.INVALID_PARAMETER, "#" + Flag.PLAYBACK.toString().toLowerCase());
-            parameters.actions.clear();
-            parameters.actions.add(EntryAction.TP.id);
-            parameters.actions.add(EntryAction.TP.idPos);
-            parameters.actions.add(EntryAction.POS.id);
-        }
-        if (parameters.flags.contains(Flag.MONEY)) {
-            parameters.actions.clear();
-            parameters.actions.add(EntryAction.MONEY.id);
-            parameters.actions.add(EntryAction.MONEY.idPos);
-        }
-        if (!parameters.ratings.isEmpty()) {
-            if (!parameters.actions.isEmpty()) {
-                for (int id : parameters.actions) {
-                    if (id != EntryAction.VEIN.id) {
-                        throw new ParseException(Language.L.COMMAND__LOOKUP__RATING_WRONG);
-                    }
-                }
-            } else {
-                parameters.actions.add(EntryAction.VEIN.id);
-            }
-        }
-
-        plugin.debug("After:" + parameters.after + " Before:" + parameters.before);
-        return parameters;
-    }
-
-    private static String replaceAlias(String base, String alias, String fullName) {
-        if (base.equalsIgnoreCase(alias)) {
-            return fullName;
-        }
-        return base;
-    }
-
-    private static List<String> split(final String str) {
-        StringBuilder build = new StringBuilder();
-        boolean escape = false;
-        List<String> values = new ArrayList<>();
-        for (char current : str.toCharArray()) {
-            if (current == '\\') {
-                escape = true;
-                continue;
-            }
-            if (!escape && current == ',') {
-                values.add(build.toString());
-                build = new StringBuilder();
-                continue;
-            }
-            if (escape && current != ',') {
-                build.append('\\');
-            }
-            build.append(current);
-
-            if (escape) {
-                escape = false;
-            }
-        }
-        if (escape) {
-            build.append('\\');
-        }
-        if (!build.isEmpty()) {
-            values.add(build.toString());
-        }
-        return values;
-    }
-
-    /**
-     * Sets the time. Equivalent to time:<param>
-     *
-     * @param param May be a range, a single time, or an exact time
-     */
-    public Parameters time(String param) throws ParseException {
-        param = param.replace("ms", "f");
-        boolean plusminus = param.contains("+-");
-        boolean minus = param.contains("-");
-        if (minus) { // || plusminus unnecessary because they both have '-'
-            String[] range = param.split("\\+?-");
-            if (range.length != 2) {
-                throw new ParseException(Language.L.INVALID_PARAMETER, param);
-            }
-
-            long time1;
-            long time2;
-            try {
-                time1 = TimeUtil.stringToMillis(range[0]);
-                time2 = TimeUtil.stringToMillis(range[1]);
-            } catch (NumberFormatException e) {
-                throw new ParseException(Language.L.INVALID_PARAMETER, param);
-            }
-
-            if (!range[0].endsWith("e")) {
-                time1 = System.currentTimeMillis() - time1;
-            }
-            if (plusminus) {
-                after = time1 - time2;
-                before = time1 + time2;
-            } else {
-                if (!range[1].endsWith("e")) {
-                    time2 = System.currentTimeMillis() - time2;
-                }
-                after = Math.min(time1, time2);
-                before = Math.max(time1, time2);
-            }
-        } else if (param.endsWith("e")) {
-            exactTime.add(Long.parseLong(param.substring(0, param.length() - 1)));
-        } else {
-            long time;
-            try {
-                time = TimeUtil.stringToMillis(param);
-                if (time < 0) {
-                    throw new ParseException(Language.L.INVALID_PARAMETER, param);
-                }
-            } catch (NumberFormatException e) {
-                throw new ParseException(Language.L.INVALID_PARAMETER, param);
-            }
-
-            if (!param.endsWith("e")) {
-                time = System.currentTimeMillis() - time;
-            }
-            after = time;
-        }
-        return this;
-    }
-
-    public Parameters before(String time) throws ParseException {
-        time(time, true);
-        return this;
-    }
-
-    public Parameters after(String time) throws ParseException {
-        time(time, false);
-        return this;
-    }
-
-    /**
-     * Sets the user of the lookup. Equivalent to user:<param>
-     *
-     * @param param The user, or null to clear.
-     * @throws LookupException The user is not found
-     */
-    public Parameters user(@Nullable String param) throws LookupException {
-        if (param == null) {
-            users.clear();
-            uids.clear();
-            return this;
-        }
-        //noinspection AssignmentUsedAsCondition
-        if (negateUser = param.startsWith("!")) {
-            param = param.substring(1);
-        }
-        uids.addAll(userTargetParamToList(param));
-        if (uids.isEmpty()) { // catch-all
-            throw new LookupException(Language.L.LOOKUP_PLAYERNOTFOUND, param);
-        }
-        users.addAll(Arrays.asList(param.split(",")));
-        return this;
-    }
-
-    /**
-     * Sets the action. Equivalent to action:<param>
-     *
-     * @param sender Only used for permission checks.
-     * @param param  The action
-     */
-    public Parameters action(@Nullable SenderAdapter sender, String param) throws ParseException {
-        for (Map.Entry<EntryAction, Integer> entry : parseEntryActions(param).entrySet()) {
-            addAction(sender, entry.getKey(), entry.getValue());
-        }
-        return this;
-    }
-
-    /**
-     * Parses the provided string into a Map of actions
-     *
-     * @param param The command string to parse (Excluding `action:`)
-     * @return A Map with the keys being each entry and the values being the states of each action. 1 for + only, -1 for - only, and 0 for either.
-     * @throws ParseException For unknown actions or attempt to negate actions
-     */
-    public static Map<EntryAction, Integer> parseEntryActions(String param) throws ParseException {
-        if (param.startsWith("!")) {
-            throw new ParseException(Language.L.COMMAND__LOOKUP__ACTION_NEGATE);
-        }
-
-        Map<EntryAction, Integer> out = new HashMap<>();
-        for (String actionStr : param.split(",")) {
-            int state = 0;
-            boolean pos = actionStr.startsWith("+");
-            if (pos || actionStr.startsWith("-")) {
-                state = pos ? 1 : -1;
-                actionStr = actionStr.substring(1);
-            }
-            EntryAction action = EntryAction.getAction(actionStr);
-            if (action == null) {
-                throw new ParseException(Language.L.LOOKUP_UNKNOWNACTION, param);
-            }
-            if (state != 0 && !action.hasDual) {
-                // The action exists, but does not have states
-                // TODO should this error be more specific?
-                throw new ParseException(Language.L.LOOKUP_UNKNOWNACTION, param);
-            }
-            Integer current = out.get(action);
-            if (current != null) {
-                if (current == state || current == 0) continue;
-                state = 0; // Param string specified both +ACTION and -ACTION, combine them to null
-            }
-            out.put(action, state);
-        }
-        return out;
-    }
-
-    /**
-     * Sets the target of the lookup. Equivalent to target:<target>
-     * <p>
-     *
-     * @param param Null will clear
-     * @throws IllegalStateException if the table is null
-     */
-    public Parameters target(@Nullable String param) throws LookupException {
-        if (param == null) {
-            targets.clear();
-            return this;
-        }
-        if (table == null) {
-            throw new IllegalStateException("action or table must be set before target");
-        }
-        //noinspection AssignmentUsedAsCondition
-        if (negateTarget = param.startsWith("!")) {
-            param = param.substring(1);
-        }
-        if (table.hasStringTarget()) {
-            targets.addAll(split(param));
-        } else {
-            targets.addAll(userTargetParamToList(param));
-        }
-        return this;
-    }
-
-    private List<String> userTargetParamToList(String param) throws LookupException {
-        List<String> out = new ArrayList<>();
-        for (String user : param.split(",")) {
-            int uid;
-            int resolvedID;
-            try {
-                uid = plugin.getSqlManager().getUserManager().getUID(user, false);
-                resolvedID = plugin.getSqlManager().getUserManager().getUIDFromUsernameID(uid);
-            } catch (BusyException e) {
-                throw new LookupException(L.DATABASE_BUSY);
-            } catch (SQLException e) {
-                throw new LookupException(L.ERROR);
-            }
-            boolean good = false;
-            if (uid > 0) {
-                out.add(Integer.toString(uid));
-                good = true;
-            }
-            if (resolvedID > 0) {
-                out.add(Integer.toString(resolvedID));
-                good = true;
-            }
-            if (!good) throw new LookupException(Language.L.LOOKUP_PLAYERNOTFOUND, user);
-        }
-        return out;
-    }
-
-    /**
-     * Sets the data. Equivalent to data:<param>
-     */
-    public void data(String param) throws ParseException {
-        if (param == null) {
-            datas.clear();
-            return;
-        }
-        if (table == null) {
-            throw new IllegalStateException("action or table must be set before target");
-        }
-        if (!table.hasData()) {
-            throw new ParseException(Language.L.COMMAND__LOOKUP__NODATA);
-        }
-        //noinspection AssignmentUsedAsCondition
-        if (negateData = param.startsWith("!")) {
-            param = param.substring(1);
-        }
-        datas.addAll(split(param));
-    }
-
-    // -------------------------------------------------
-    // ------------------- API BASED -------------------
-    // -------------------------------------------------
-
-    public void radius(String param) throws ParseException {
-        for (String str : param.split(",")) {
-            try {
-                boolean negate = str.startsWith("!");
-                if (negate) {
-                    str = str.substring(1);
-                }
-                radius.put(Integer.parseInt(str), negate);
-            } catch (Exception e) {
-                throw new ParseException(Language.L.INVALID_PARAMETER, param);
-            }
-        }
-    }
-
-    public Parameters world(String param) throws ParseException {
-        //noinspection AssignmentUsedAsCondition
-        if (negateWorld = param.startsWith("!")) {
-            param = param.substring(1);
-        }
-        for (String str : param.split(",")) {
-            int wid = plugin.getSqlManager().getWID(str);
-            if (wid <= 0) {
-                throw new ParseException(Language.L.COMMAND__LOOKUP__UNKNOWN_WORLD, str);
-            }
-            worlds.add(wid);
-        }
-        return this;
-    }
-
-    public Parameters time(long start, long stop) {
-        after(Math.min(start, stop));
-        before(Math.max(start, stop));
-
-        return this;
-    }
-
-    public Parameters before(long time) {
-        this.before = time;
-        return this;
-    }
-
-    public Parameters after(long time) {
-        this.after = time;
-        return this;
-    }
-
-    public Parameters group(double radius) {
-        this.groupRange = radius;
-        return this;
-    }
-
-    /**
-     * Adds the specified UUID to the list of users
-     *
-     * @param uuid   The UUID to be added
-     * @param negate Whether to negate
-     * @throws LookupException If the user is not found
-     */
-    public Parameters user(UUID uuid, boolean negate) throws LookupException {
-        this.negateUser = negate;
-        int uid;
+  /**
+   * This method is used by the lookup command to parse commands. This may be used by an API by
+   * manually creating a String[] args
+   *
+   * @param sender The player sending the command. Used for permission checks. Null to bypass
+   * @param args   Arguments of the command.
+   */
+  public static Parameters parse(@Nullable SenderAdapter sender, String[] args)
+      throws ParseException, LookupException {
+    IAuxProtect plugin = AuxProtectAPI.getInstance();
+    Parameters parameters = new Parameters();
+    int count = 0;
+    String datastr = null;
+    String targetstr = null;
+    for (int i = 1; i < args.length; i++) {
+      String line = args[i];
+      if (line.startsWith("#")) {
+        Flag flag = null;
         try {
-            uid = plugin.getSqlManager().getUserManager().getUID("$" + uuid.toString(), false);
-        } catch (BusyException e) {
-            throw new LookupException(L.DATABASE_BUSY);
-        } catch (SQLException e) {
-            throw new LookupException(L.ERROR);
+          flag = Flag.valueOf(line.toUpperCase().substring(1).replaceAll("-", "_"));
+        } catch (Exception ignored) {
         }
-
-        if (uid > 0) {
-            uids.add(Integer.toString(uid));
-        } else {
-            throw new LookupException(Language.L.LOOKUP_PLAYERNOTFOUND, uuid);
-        }
-        users.add(uuid.toString());
-        return this;
-    }
-
-    /**
-     * Adds actions to this parameter instance
-     *
-     * @param sender Will be used for individual action permission checks. Null will
-     *               bypass checks
-     * @param action The actions to be added
-     * @param state  -1 for negative, 0 for either, 1 for positive
-     */
-    public Parameters addAction(@Nullable SenderAdapter sender, EntryAction action, int state) throws ParseException {
-        if (!action.isEnabled()) {
+        if (flag != null) {
+          if (sender != null && !flag.hasPermission(sender)) {
+            throw new ParseException(Language.L.NO_PERMISSION_FLAG);
+          }
+          if (!flag.isEnabled()) {
             throw new ParseException(Language.L.ACTION_DISABLED);
+          }
+          if (flag == Flag.ONLY_USER2 && parameters.table != Table.AUXPROTECT_TRANSACTIONS) {
+            throw new ParseException(Language.L.COMMAND__LOOKUP__WRONG_FLAG,
+                flag.toString().toLowerCase(), parameters.table);
+          }
+          parameters.flags.add(flag);
+          continue;
         }
+      }
+      String[] split = line.split(":");
 
-        if (sender != null && !action.hasPermission(sender)) {
-            throw new ParseException(Language.L.COMMAND__LOOKUP__ACTION_PERM, action.getNode());
-        }
-        if (table != null && table != action.getTable()) {
-            throw new ParseException(Language.L.COMMAND__LOOKUP__INCOMPATIBLE_TABLES);
-        }
-        table = action.getTable();
-        if (action.hasDual) {
-            if (state != -1) {
-                actions.add(action.idPos);
+      String token = split[0].toLowerCase();
+      token = replaceAlias(token, "a", "action");
+      token = replaceAlias(token, "t", "time");
+      token = replaceAlias(token, "u", "user");
+      token = replaceAlias(token, "r", "radius");
+      token = replaceAlias(token, "w", "world");
+      token = replaceAlias(token, "a", "action");
+      token = replaceAlias(token, "g", "group");
+
+      if (split.length == 2) {
+        String param = split[1];
+        count++;
+        switch (token) {
+          case "user" -> parameters.user(param);
+          case "target" -> targetstr = param;
+          case "data" -> datastr = param;
+          case "action" -> parameters.action(sender, param);
+          case "before" -> parameters.time(param, true);
+          case "after" -> parameters.time(param, false);
+          case "time" -> parameters.time(param);
+          case "radius" -> {
+            if (sender == null) {
+              throw new ParseException(L.NOTPLAYERERROR);
             }
-            if (state != 1) {
-                actions.add(action.id);
+            if (sender.getPlatform().getLevel() != PlatformType.Level.SERVER) {
+              throw new ParseException(L.INVALID_PARAMETER, line);
             }
-        } else {
-            actions.add(action.id);
-        }
-        return this;
-    }
-
-    /**
-     * Adds the specified UUID to the list of users
-     *
-     * @param uuid   The UUID to be added
-     * @param negate Whether to negate
-     * @throws LookupException If the user is not found
-     */
-    public Parameters target(UUID uuid, boolean negate) throws LookupException {
-        this.negateTarget = negate;
-        int uid;
-        try {
-            uid = plugin.getSqlManager().getUserManager().getUID("$" + uuid.toString(), false);
-        } catch (BusyException e) {
-            throw new LookupException(L.DATABASE_BUSY);
-        } catch (SQLException e) {
-            throw new LookupException(L.ERROR);
-        }
-
-        if (uid > 0) {
-            targets.add(Integer.toString(uid));
-        } else {
-            throw new LookupException(Language.L.LOOKUP_PLAYERNOTFOUND, uuid);
-        }
-        return this;
-    }
-
-    /**
-     * Sets the flags. Does not affect any other flags.
-     *
-     * @param flag the flag to add
-     */
-    public Parameters flag(Flag flag) {
-        flags.add(flag);
-        return this;
-    }
-
-    public Parameters addExactTime(long exactTime) {
-        this.exactTime.add(exactTime);
-        return this;
-    }
-
-    public Parameters addRadius(int radius, boolean negate) {
-        this.radius.put(radius, negate);
-        return this;
-    }
-
-    public Parameters addWorld(String world) throws ParseException {
-        int wid = plugin.getSqlManager().getWID(world);
-        if (wid < 0) throw new ParseException(L.COMMAND__LOOKUP__UNKNOWN_WORLD);
-        this.worlds.add(wid);
-        return this;
-    }
-
-    /**
-     * Clears the flags
-     */
-    public Parameters resetFlags() {
-        this.flags.clear();
-        return this;
-    }
-
-    public Parameters addRating(short rating) {
-        this.ratings.add(rating);
-        return this;
-    }
-
-    // -----------------------------------------------
-    // ------------------- GETTERS -------------------
-    // -----------------------------------------------
-
-    public Set<String> getUIDs() {
-        return uids;
-    }
-
-    public int getWorldID() {
-        return world;
-    }
-
-    public Parameters setLocation(String world, int x, int y, int z) throws ParseException {
-        int wid = plugin.getSqlManager().getWID(world);
-        if (wid < 0) throw new ParseException(L.COMMAND__LOOKUP__UNKNOWN_WORLD);
-        this.world = wid;
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        return this;
-    }
-
-    public Parameters clearRadius() {
-        radius.clear();
-        return this;
-    }
-
-    public Parameters setNegateWorld(boolean negateWorld) {
-        this.negateWorld = negateWorld;
-        return this;
-    }
-
-    public Set<Integer> getWorld() {
-        return worlds;
-    }
-
-    public boolean hasFlag(Flag flag) {
-        if (!flag.isEnabled()) return false;
-        return flags.contains(flag);
-    }
-
-    public String[] toSQL(IAuxProtect plugin) {
-        if (table == null) {
-            throw new IllegalStateException();
-        }
-        SQLManager sql = plugin.getSqlManager();
-        List<String> stmts = new ArrayList<>();
-        List<String> out = new ArrayList<>();
-
-        if (!uids.isEmpty()) {
-            boolean onlyUser2 = table == Table.AUXPROTECT_TRANSACTIONS && hasFlag(Flag.ONLY_USER2);
-            String stmt = (onlyUser2 ? "target_id2 " : "uid ") + (negateUser ? "NOT " : "") + "IN ";
-            String uidGroup = toGroup(uids);
-            stmt += uidGroup;
-
-            if (table == Table.AUXPROTECT_TRANSACTIONS && !onlyUser2) {
-                stmt += " OR target_id2 IN " + uidGroup;
-            }
-
-            stmts.add(stmt);
-        }
-        if (!targets.isEmpty()) {
-            StringBuilder stmt = new StringBuilder("(");
-
-            boolean first = true;
-
-            if (table.hasStringTarget()) {
-                for (String target : targets) {
-                    if (first) {
-                        first = false;
-                    } else {
-                        stmt.append(" OR ");
-                    }
-                    stmt.append("target LIKE ?");
-                    out.add(target.replaceAll("-", "[- ]").replaceAll("\\*", "%"));
-                }
+            if (sender instanceof PositionedSender positionedSender) {
+              try {
+                parameters.setLocation(
+                    positionedSender.getLocation().getWorld(),
+                    positionedSender.getLocation().getBlockX(),
+                    positionedSender.getLocation().getBlockY(),
+                    positionedSender.getLocation().getBlockZ()
+                );
+              } catch (NotPlayerException e) {
+                throw new ParseException(L.NOTPLAYERERROR);
+              }
+              parameters.radius(param);
             } else {
-                stmt.append("target_id IN ");
-                stmt.append(toGroup(targets));
+              throw new ParseException(L.NOTPLAYERERROR);
             }
+          }
+          case "world" -> parameters.world(param);
+          case "rating" -> {
+            for (String str : param.split(",")) {
+              try {
+                parameters.ratings.add(Short.parseShort(str));
+              } catch (NumberFormatException e) {
+                throw new ParseException(L.INVALID_PARAMETER, line);
+              }
+            }
+          }
+          case "db" -> {
+            if (!APPermission.ADMIN.hasPermission(sender)) {
+              throw new ParseException(L.NO_PERMISSION);
+            }
+            try {
+              parameters.table = Table.valueOf(param.toUpperCase());
+            } catch (Exception e) {
+              throw new ParseException(L.INVALID_PARAMETER, line);
+            }
+          }
+          case "group" -> {
+            if (!APPermission.LOOKUP_GROUP.hasPermission(sender)) {
+              throw new ParseException(L.NO_PERMISSION);
+            }
+            double groupRange = 0;
+            try {
+              groupRange = Double.parseDouble(param);
+            } catch (NumberFormatException ignored) {
+            }
+            if (groupRange <= 0) {
+              throw new ParseException(L.INVALID_PARAMETER, line);
+            }
+            parameters.group(groupRange);
+          }
+          default -> throw new ParseException(L.INVALID_PARAMETER, line);
+        }
+      }
 
-            stmts.add((negateTarget ? "NOT " : "") + stmt + ")");
-        }
-        if (!exactTime.isEmpty()) {
-            StringBuilder stmt = new StringBuilder();
-            for (Long exact : exactTime) {
-                if (!stmt.isEmpty()) {
-                    stmt.append(" OR ");
-                }
-                stmt.append("time BETWEEN ").append(exact * Snowflake.COUNTER_FACTOR).append(" AND ").append((exact + 1) * Snowflake.COUNTER_FACTOR - 1);
-            }
-            stmts.add("(" + stmt + ")");
-        }
-        if (after > 0) {
-            stmts.add("time >= " + after * Snowflake.COUNTER_FACTOR);
-        }
-        if (before < Long.MAX_VALUE) {
-            stmts.add("time <= " + before * Snowflake.COUNTER_FACTOR);
-        }
-        if (!actions.isEmpty() && table.hasActionId()) {
-            stmts.add("action_id IN " + toGroup(actions));
-        }
-        if (!ratings.isEmpty() && table == Table.AUXPROTECT_XRAY) {
-            stmts.add("rating IN " + toGroup(ratings));
-        }
-        if (!datas.isEmpty() && table.hasData()) {
-            StringBuilder stmt = new StringBuilder("(");
-
-            boolean first = true;
-
-            for (String data : datas) {
-                if (first) {
-                    first = false;
-                } else {
-                    stmt.append(" OR ");
-                }
-                stmt.append("data LIKE ?");
-                out.add(data.replaceAll("-", "[- ]").replaceAll("\\*", "%"));
-            }
-            stmts.add((negateData ? "NOT " : "") + stmt + ")");
-        }
-
-        if (table.hasLocation(plugin.getPlatform())) {
-            if (!radius.isEmpty() && world >= 0) {
-                radius.forEach((r, n) -> {
-                    String between = " BETWEEN ";
-                    String coordstmt = "x" + between + (x - r) + " AND " + (x + r);
-                    if (!hasFlag(Flag.RADIUS_HORIZONTAL_ONLY)) {
-                        coordstmt += " AND y" + between + (y - r) + " AND " + (y + r);
-                    }
-                    coordstmt += " AND z" + between + (z - r) + " AND " + (z + r);
-                    coordstmt += " AND world_id=" + world;
-                    if (n) {
-                        coordstmt = "NOT (" + coordstmt + ")";
-                    }
-                    stmts.add(coordstmt);
-                });
-            }
-            if (!worlds.isEmpty()) {
-                StringBuilder stmt = new StringBuilder("world_id" + (negateWorld ? " NOT" : "") + " IN (");
-                boolean first = true;
-                for (int i : worlds) {
-                    if (first) {
-                        first = false;
-                    } else {
-                        stmt.append(",");
-                    }
-                    stmt.append(i);
-                }
-                stmts.add(stmt + ")");
-            }
-        }
-
-        StringBuilder outsql = new StringBuilder();
-        for (String stmt : stmts) {
-            if (stmt == null || stmt.isEmpty()) {
-                continue;
-            }
-            if (!outsql.isEmpty()) {
-                outsql.append(" AND ");
-            }
-            outsql.append("(").append(stmt).append(")");
-        }
-        String[] output = new String[out.size() + 1];
-        output[0] = outsql.toString();
-        for (int i = 0; i < out.size(); i++) {
-            output[i + 1] = out.get(i);
-        }
-        return output;
+    }
+    if (count < 1) {
+      throw new ParseException(Language.L.INVALID_NOTENOUGH);
     }
 
-    private Parameters time(String param, boolean before) throws ParseException {
-        try {
-            long time = TimeUtil.stringToMillis(param);
-            if (time < 0) {
-                throw new ParseException(Language.L.INVALID_PARAMETER, param);
-            }
-            if (!param.endsWith("e")) {
-                time = System.currentTimeMillis() - time;
-            }
-            if (before) {
-                this.before = time;
-            } else {
-                this.after = time;
-            }
-        } catch (NumberFormatException e) {
-            throw new ParseException(Language.L.INVALID_PARAMETER, param);
+    parameters.target(targetstr);
+    parameters.data(datastr);
+
+    if (parameters.actions.isEmpty() || parameters.table == null) {
+      for (EntryAction action : EntryAction.values()) {
+        if (action.getTable() == Table.AUXPROTECT_MAIN
+            && !APPermission.LOOKUP_ACTION.dot(action.toString().toLowerCase())
+            .hasPermission(sender)) {
+          throw new ParseException(Language.L.COMMAND__LOOKUP__ACTION_NONE);
         }
-        return this;
+      }
+      parameters.table = Table.AUXPROTECT_MAIN;
+    }
+    if (!parameters.datas.isEmpty() && (parameters.actions.contains(EntryAction.SESSION.id)
+        || parameters.actions.contains(EntryAction.SESSION.idPos))) {
+      if (!APPermission.LOOKUP_ACTION.dot(EntryAction.SESSION.toString().toLowerCase()).dot("ip")
+          .hasPermission(sender)) {
+        throw new ParseException(Language.L.COMMAND__LOOKUP__ACTION_NONE);
+      }
+    }
+    if (parameters.flags.contains(Flag.COMBINE_USER_TARGET)) {
+      parameters.uids.addAll(parameters.targets);
+      parameters.targets.addAll(parameters.uids);
+    }
+    if (parameters.flags.contains(Flag.ACTIVITY) || parameters.flags.contains(Flag.PLAYTIME)) {
+      if (parameters.users.size() > 1) {
+        throw new ParseException(Language.L.COMMAND__LOOKUP__PLAYTIME__TOOMANYUSERS);
+      } else if (parameters.uids.isEmpty()) {
+        throw new ParseException(Language.L.COMMAND__LOOKUP__PLAYTIME__NOUSER);
+      }
+    }
+    if (parameters.flags.contains(Flag.PLAYTIME)) {
+      parameters.actions.clear();
+      parameters.actions.add(EntryAction.SESSION.id);
+      parameters.actions.add(EntryAction.SESSION.idPos);
+    }
+    if (parameters.flags.contains(Flag.ACTIVITY)) {
+      parameters.actions.clear();
+      parameters.actions.add(EntryAction.ACTIVITY.id);
+      parameters.actions.add(EntryAction.ACTIVITY.idPos);
+    }
+    if (parameters.hasFlag(Flag.PLAYBACK)) {
+      if (plugin.getPlatform().getLevel() != PlatformType.Level.SERVER || sender == null) {
+        throw new ParseException(L.INVALID_PARAMETER, "#" + Flag.PLAYBACK.toString().toLowerCase());
+      }
+      parameters.actions.clear();
+      parameters.actions.add(EntryAction.TP.id);
+      parameters.actions.add(EntryAction.TP.idPos);
+      parameters.actions.add(EntryAction.POS.id);
+    }
+    if (parameters.flags.contains(Flag.MONEY)) {
+      parameters.actions.clear();
+      parameters.actions.add(EntryAction.MONEY.id);
+      parameters.actions.add(EntryAction.MONEY.idPos);
+    }
+    if (!parameters.ratings.isEmpty()) {
+      if (!parameters.actions.isEmpty()) {
+        for (int id : parameters.actions) {
+          if (id != EntryAction.VEIN.id) {
+            throw new ParseException(Language.L.COMMAND__LOOKUP__RATING_WRONG);
+          }
+        }
+      } else {
+        parameters.actions.add(EntryAction.VEIN.id);
+      }
     }
 
-    private int distance(DbEntry entry) {
-        if (world < 0) {
-            return -1;
-        }
-        if (plugin.getSqlManager().getWID(entry.getWorld()) != world) {
-            return Integer.MAX_VALUE;
-        }
-        return Math.max(Math.max(Math.abs(entry.getX() - getX()), Math.abs(entry.getY() - getY())), Math.abs(entry.getZ() - getZ()));
+    plugin.debug("After:" + parameters.after + " Before:" + parameters.before);
+    return parameters;
+  }
+
+  private static String replaceAlias(String base, String alias, String fullName) {
+    if (base.equalsIgnoreCase(alias)) {
+      return fullName;
+    }
+    return base;
+  }
+
+  private static List<String> split(final String str) {
+    StringBuilder build = new StringBuilder();
+    boolean escape = false;
+    List<String> values = new ArrayList<>();
+    for (char current : str.toCharArray()) {
+      if (current == '\\') {
+        escape = true;
+        continue;
+      }
+      if (!escape && current == ',') {
+        values.add(build.toString());
+        build = new StringBuilder();
+        continue;
+      }
+      if (escape && current != ',') {
+        build.append('\\');
+      }
+      build.append(current);
+
+      if (escape) {
+        escape = false;
+      }
+    }
+    if (escape) {
+      build.append('\\');
+    }
+    if (!build.isEmpty()) {
+      values.add(build.toString());
+    }
+    return values;
+  }
+
+  /**
+   * Parses the provided string into a Map of actions
+   *
+   * @param param The command string to parse (Excluding `action:`)
+   * @return A Map with the keys being each entry and the values being the states of each action. 1
+   * for + only, -1 for - only, and 0 for either.
+   * @throws ParseException For unknown actions or attempt to negate actions
+   */
+  public static Map<EntryAction, Integer> parseEntryActions(String param) throws ParseException {
+    if (param.startsWith("!")) {
+      throw new ParseException(Language.L.COMMAND__LOOKUP__ACTION_NEGATE);
     }
 
-    private String toGroup(Set<?> set) {
-        StringBuilder stmt = new StringBuilder("(");
+    Map<EntryAction, Integer> out = new HashMap<>();
+    for (String actionStr : param.split(",")) {
+      int state = 0;
+      boolean pos = actionStr.startsWith("+");
+      if (pos || actionStr.startsWith("-")) {
+        state = pos ? 1 : -1;
+        actionStr = actionStr.substring(1);
+      }
+      EntryAction action = EntryAction.getAction(actionStr);
+      if (action == null) {
+        throw new ParseException(Language.L.LOOKUP_UNKNOWNACTION, param);
+      }
+      if (state != 0 && !action.hasDual) {
+        // The action exists, but does not have states
+        // TODO should this error be more specific?
+        throw new ParseException(Language.L.LOOKUP_UNKNOWNACTION, param);
+      }
+      Integer current = out.get(action);
+      if (current != null) {
+        if (current == state || current == 0) {
+          continue;
+        }
+        state = 0; // Param string specified both +ACTION and -ACTION, combine them to null
+      }
+      out.put(action, state);
+    }
+    return out;
+  }
+
+  /**
+   * Sets the time. Equivalent to time:<param>
+   *
+   * @param param May be a range, a single time, or an exact time
+   */
+  public Parameters time(String param) throws ParseException {
+    param = param.replace("ms", "f");
+    boolean plusminus = param.contains("+-");
+    boolean minus = param.contains("-");
+    if (minus) { // || plusminus unnecessary because they both have '-'
+      String[] range = param.split("\\+?-");
+      if (range.length != 2) {
+        throw new ParseException(Language.L.INVALID_PARAMETER, param);
+      }
+
+      long time1;
+      long time2;
+      try {
+        time1 = TimeUtil.stringToMillis(range[0]);
+        time2 = TimeUtil.stringToMillis(range[1]);
+      } catch (NumberFormatException e) {
+        throw new ParseException(Language.L.INVALID_PARAMETER, param);
+      }
+
+      if (!range[0].endsWith("e")) {
+        time1 = System.currentTimeMillis() - time1;
+      }
+      if (plusminus) {
+        after = time1 - time2;
+        before = time1 + time2;
+      } else {
+        if (!range[1].endsWith("e")) {
+          time2 = System.currentTimeMillis() - time2;
+        }
+        after = Math.min(time1, time2);
+        before = Math.max(time1, time2);
+      }
+    } else if (param.endsWith("e")) {
+      exactTime.add(Long.parseLong(param.substring(0, param.length() - 1)));
+    } else {
+      long time;
+      try {
+        time = TimeUtil.stringToMillis(param);
+        if (time < 0) {
+          throw new ParseException(Language.L.INVALID_PARAMETER, param);
+        }
+      } catch (NumberFormatException e) {
+        throw new ParseException(Language.L.INVALID_PARAMETER, param);
+      }
+
+      if (!param.endsWith("e")) {
+        time = System.currentTimeMillis() - time;
+      }
+      after = time;
+    }
+    return this;
+  }
+
+  public Parameters before(String time) throws ParseException {
+    time(time, true);
+    return this;
+  }
+
+  public Parameters after(String time) throws ParseException {
+    time(time, false);
+    return this;
+  }
+
+  /**
+   * Sets the user of the lookup. Equivalent to user:<param>
+   *
+   * @param param The user, or null to clear.
+   * @throws LookupException The user is not found
+   */
+  public Parameters user(@Nullable String param) throws LookupException {
+    if (param == null) {
+      users.clear();
+      uids.clear();
+      return this;
+    }
+    //noinspection AssignmentUsedAsCondition
+    if (negateUser = param.startsWith("!")) {
+      param = param.substring(1);
+    }
+    uids.addAll(userTargetParamToList(param));
+    if (uids.isEmpty()) { // catch-all
+      throw new LookupException(Language.L.LOOKUP_PLAYERNOTFOUND, param);
+    }
+    users.addAll(Arrays.asList(param.split(",")));
+    return this;
+  }
+
+  /**
+   * Sets the action. Equivalent to action:<param>
+   *
+   * @param sender Only used for permission checks.
+   * @param param  The action
+   */
+  public Parameters action(@Nullable SenderAdapter sender, String param) throws ParseException {
+    for (Map.Entry<EntryAction, Integer> entry : parseEntryActions(param).entrySet()) {
+      addAction(sender, entry.getKey(), entry.getValue());
+    }
+    return this;
+  }
+
+  /**
+   * Sets the target of the lookup. Equivalent to target:<target>
+   * <p>
+   *
+   * @param param Null will clear
+   * @throws IllegalStateException if the table is null
+   */
+  public Parameters target(@Nullable String param) throws LookupException {
+    if (param == null) {
+      targets.clear();
+      return this;
+    }
+    if (table == null) {
+      throw new IllegalStateException("action or table must be set before target");
+    }
+    //noinspection AssignmentUsedAsCondition
+    if (negateTarget = param.startsWith("!")) {
+      param = param.substring(1);
+    }
+    if (table.hasStringTarget()) {
+      targets.addAll(split(param));
+    } else {
+      targets.addAll(userTargetParamToList(param));
+    }
+    return this;
+  }
+
+  private List<String> userTargetParamToList(String param) throws LookupException {
+    List<String> out = new ArrayList<>();
+    for (String user : param.split(",")) {
+      int uid;
+      int resolvedID;
+      try {
+        uid = plugin.getSqlManager().getUserManager().getUID(user, false);
+        resolvedID = plugin.getSqlManager().getUserManager().getUIDFromUsernameID(uid);
+      } catch (BusyException e) {
+        throw new LookupException(L.DATABASE_BUSY);
+      } catch (SQLException e) {
+        throw new LookupException(L.ERROR);
+      }
+      boolean good = false;
+      if (uid > 0) {
+        out.add(Integer.toString(uid));
+        good = true;
+      }
+      if (resolvedID > 0) {
+        out.add(Integer.toString(resolvedID));
+        good = true;
+      }
+      if (!good) {
+        throw new LookupException(Language.L.LOOKUP_PLAYERNOTFOUND, user);
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Sets the data. Equivalent to data:<param>
+   */
+  public void data(String param) throws ParseException {
+    if (param == null) {
+      datas.clear();
+      return;
+    }
+    if (table == null) {
+      throw new IllegalStateException("action or table must be set before target");
+    }
+    if (!table.hasData()) {
+      throw new ParseException(Language.L.COMMAND__LOOKUP__NODATA);
+    }
+    //noinspection AssignmentUsedAsCondition
+    if (negateData = param.startsWith("!")) {
+      param = param.substring(1);
+    }
+    datas.addAll(split(param));
+  }
+
+  // -------------------------------------------------
+  // ------------------- API BASED -------------------
+  // -------------------------------------------------
+
+  public void radius(String param) throws ParseException {
+    for (String str : param.split(",")) {
+      try {
+        boolean negate = str.startsWith("!");
+        if (negate) {
+          str = str.substring(1);
+        }
+        radius.put(Integer.parseInt(str), negate);
+      } catch (Exception e) {
+        throw new ParseException(Language.L.INVALID_PARAMETER, param);
+      }
+    }
+  }
+
+  public Parameters world(String param) throws ParseException {
+    //noinspection AssignmentUsedAsCondition
+    if (negateWorld = param.startsWith("!")) {
+      param = param.substring(1);
+    }
+    for (String str : param.split(",")) {
+      int wid = plugin.getSqlManager().getWID(str);
+      if (wid <= 0) {
+        throw new ParseException(Language.L.COMMAND__LOOKUP__UNKNOWN_WORLD, str);
+      }
+      worlds.add(wid);
+    }
+    return this;
+  }
+
+  public Parameters time(long start, long stop) {
+    after(Math.min(start, stop));
+    before(Math.max(start, stop));
+
+    return this;
+  }
+
+  public Parameters before(long time) {
+    this.before = time;
+    return this;
+  }
+
+  public Parameters after(long time) {
+    this.after = time;
+    return this;
+  }
+
+  public Parameters group(double radius) {
+    this.groupRange = radius;
+    return this;
+  }
+
+  /**
+   * Adds the specified UUID to the list of users
+   *
+   * @param uuid   The UUID to be added
+   * @param negate Whether to negate
+   * @throws LookupException If the user is not found
+   */
+  public Parameters user(UUID uuid, boolean negate) throws LookupException {
+    this.negateUser = negate;
+    int uid;
+    try {
+      uid = plugin.getSqlManager().getUserManager().getUID("$" + uuid.toString(), false);
+    } catch (BusyException e) {
+      throw new LookupException(L.DATABASE_BUSY);
+    } catch (SQLException e) {
+      throw new LookupException(L.ERROR);
+    }
+
+    if (uid > 0) {
+      uids.add(Integer.toString(uid));
+    } else {
+      throw new LookupException(Language.L.LOOKUP_PLAYERNOTFOUND, uuid);
+    }
+    users.add(uuid.toString());
+    return this;
+  }
+
+  /**
+   * Adds actions to this parameter instance
+   *
+   * @param sender Will be used for individual action permission checks. Null will bypass checks
+   * @param action The actions to be added
+   * @param state  -1 for negative, 0 for either, 1 for positive
+   */
+  public Parameters addAction(@Nullable SenderAdapter sender, EntryAction action, int state)
+      throws ParseException {
+    if (!action.isEnabled()) {
+      throw new ParseException(Language.L.ACTION_DISABLED);
+    }
+
+    if (sender != null && !action.hasPermission(sender)) {
+      throw new ParseException(Language.L.COMMAND__LOOKUP__ACTION_PERM, action.getNode());
+    }
+    if (table != null && table != action.getTable()) {
+      throw new ParseException(Language.L.COMMAND__LOOKUP__INCOMPATIBLE_TABLES);
+    }
+    table = action.getTable();
+    if (action.hasDual) {
+      if (state != -1) {
+        actions.add(action.idPos);
+      }
+      if (state != 1) {
+        actions.add(action.id);
+      }
+    } else {
+      actions.add(action.id);
+    }
+    return this;
+  }
+
+  /**
+   * Adds the specified UUID to the list of users
+   *
+   * @param uuid   The UUID to be added
+   * @param negate Whether to negate
+   * @throws LookupException If the user is not found
+   */
+  public Parameters target(UUID uuid, boolean negate) throws LookupException {
+    this.negateTarget = negate;
+    int uid;
+    try {
+      uid = plugin.getSqlManager().getUserManager().getUID("$" + uuid.toString(), false);
+    } catch (BusyException e) {
+      throw new LookupException(L.DATABASE_BUSY);
+    } catch (SQLException e) {
+      throw new LookupException(L.ERROR);
+    }
+
+    if (uid > 0) {
+      targets.add(Integer.toString(uid));
+    } else {
+      throw new LookupException(Language.L.LOOKUP_PLAYERNOTFOUND, uuid);
+    }
+    return this;
+  }
+
+  /**
+   * Sets the flags. Does not affect any other flags.
+   *
+   * @param flag the flag to add
+   */
+  public Parameters flag(Flag flag) {
+    flags.add(flag);
+    return this;
+  }
+
+  public Parameters addExactTime(long exactTime) {
+    this.exactTime.add(exactTime);
+    return this;
+  }
+
+  public Parameters addRadius(int radius, boolean negate) {
+    this.radius.put(radius, negate);
+    return this;
+  }
+
+  public Parameters addWorld(String world) throws ParseException {
+    int wid = plugin.getSqlManager().getWID(world);
+    if (wid < 0) {
+      throw new ParseException(L.COMMAND__LOOKUP__UNKNOWN_WORLD);
+    }
+    this.worlds.add(wid);
+    return this;
+  }
+
+  /**
+   * Clears the flags
+   */
+  public Parameters resetFlags() {
+    this.flags.clear();
+    return this;
+  }
+
+  public Parameters addRating(short rating) {
+    this.ratings.add(rating);
+    return this;
+  }
+
+  // -----------------------------------------------
+  // ------------------- GETTERS -------------------
+  // -----------------------------------------------
+
+  public Set<String> getUIDs() {
+    return uids;
+  }
+
+  public int getWorldID() {
+    return world;
+  }
+
+  public Parameters setLocation(String world, int x, int y, int z) throws ParseException {
+    int wid = plugin.getSqlManager().getWID(world);
+    if (wid < 0) {
+      throw new ParseException(L.COMMAND__LOOKUP__UNKNOWN_WORLD);
+    }
+    this.world = wid;
+    this.x = x;
+    this.y = y;
+    this.z = z;
+    return this;
+  }
+
+  public Parameters clearRadius() {
+    radius.clear();
+    return this;
+  }
+
+  public Parameters setNegateWorld(boolean negateWorld) {
+    this.negateWorld = negateWorld;
+    return this;
+  }
+
+  public Set<Integer> getWorld() {
+    return worlds;
+  }
+
+  public boolean hasFlag(Flag flag) {
+    if (!flag.isEnabled()) {
+      return false;
+    }
+    return flags.contains(flag);
+  }
+
+  public String[] toSQL(IAuxProtect plugin) {
+    if (table == null) {
+      throw new IllegalStateException();
+    }
+    SQLManager sql = plugin.getSqlManager();
+    List<String> stmts = new ArrayList<>();
+    List<String> out = new ArrayList<>();
+
+    if (!uids.isEmpty()) {
+      boolean onlyUser2 = table == Table.AUXPROTECT_TRANSACTIONS && hasFlag(Flag.ONLY_USER2);
+      String stmt = (onlyUser2 ? "target_id2 " : "uid ") + (negateUser ? "NOT " : "") + "IN ";
+      String uidGroup = toGroup(uids);
+      stmt += uidGroup;
+
+      if (table == Table.AUXPROTECT_TRANSACTIONS && !onlyUser2) {
+        stmt += " OR target_id2 IN " + uidGroup;
+      }
+
+      stmts.add(stmt);
+    }
+    if (!targets.isEmpty()) {
+      StringBuilder stmt = new StringBuilder("(");
+
+      boolean first = true;
+
+      if (table.hasStringTarget()) {
+        for (String target : targets) {
+          if (first) {
+            first = false;
+          } else {
+            stmt.append(" OR ");
+          }
+          stmt.append("target LIKE ?");
+          out.add(target.replaceAll("-", "[- ]").replaceAll("\\*", "%"));
+        }
+      } else {
+        stmt.append("target_id IN ");
+        stmt.append(toGroup(targets));
+      }
+
+      stmts.add((negateTarget ? "NOT " : "") + stmt + ")");
+    }
+    if (!exactTime.isEmpty()) {
+      StringBuilder stmt = new StringBuilder();
+      for (Long exact : exactTime) {
+        if (!stmt.isEmpty()) {
+          stmt.append(" OR ");
+        }
+        stmt.append("time BETWEEN ").append(exact * Snowflake.COUNTER_FACTOR).append(" AND ")
+            .append((exact + 1) * Snowflake.COUNTER_FACTOR - 1);
+      }
+      stmts.add("(" + stmt + ")");
+    }
+    if (after > 0) {
+      stmts.add("time >= " + after * Snowflake.COUNTER_FACTOR);
+    }
+    if (before < Long.MAX_VALUE) {
+      stmts.add("time <= " + before * Snowflake.COUNTER_FACTOR);
+    }
+    if (!actions.isEmpty() && table.hasActionId()) {
+      stmts.add("action_id IN " + toGroup(actions));
+    }
+    if (!ratings.isEmpty() && table == Table.AUXPROTECT_XRAY) {
+      stmts.add("rating IN " + toGroup(ratings));
+    }
+    if (!datas.isEmpty() && table.hasData()) {
+      StringBuilder stmt = new StringBuilder("(");
+
+      boolean first = true;
+
+      for (String data : datas) {
+        if (first) {
+          first = false;
+        } else {
+          stmt.append(" OR ");
+        }
+        stmt.append("data LIKE ?");
+        out.add(data.replaceAll("-", "[- ]").replaceAll("\\*", "%"));
+      }
+      stmts.add((negateData ? "NOT " : "") + stmt + ")");
+    }
+
+    if (table.hasLocation(plugin.getPlatform())) {
+      if (!radius.isEmpty() && world >= 0) {
+        radius.forEach((r, n) -> {
+          String between = " BETWEEN ";
+          String coordstmt = "x" + between + (x - r) + " AND " + (x + r);
+          if (!hasFlag(Flag.RADIUS_HORIZONTAL_ONLY)) {
+            coordstmt += " AND y" + between + (y - r) + " AND " + (y + r);
+          }
+          coordstmt += " AND z" + between + (z - r) + " AND " + (z + r);
+          coordstmt += " AND world_id=" + world;
+          if (n) {
+            coordstmt = "NOT (" + coordstmt + ")";
+          }
+          stmts.add(coordstmt);
+        });
+      }
+      if (!worlds.isEmpty()) {
+        StringBuilder stmt = new StringBuilder("world_id" + (negateWorld ? " NOT" : "") + " IN (");
         boolean first = true;
-        for (Object id : set) {
-            if (first) {
-                first = false;
-            } else {
-                stmt.append(",");
-            }
-            stmt.append(id);
+        for (int i : worlds) {
+          if (first) {
+            first = false;
+          } else {
+            stmt.append(",");
+          }
+          stmt.append(i);
         }
-        return stmt + ")";
+        stmts.add(stmt + ")");
+      }
     }
 
-    @SuppressWarnings("MethodDoesntCallSuperMethod")
-    @Override
-    public Parameters clone() {
-        Parameters clone = new Parameters();
+    StringBuilder outsql = new StringBuilder();
+    for (String stmt : stmts) {
+      if (stmt == null || stmt.isEmpty()) {
+        continue;
+      }
+      if (!outsql.isEmpty()) {
+        outsql.append(" AND ");
+      }
+      outsql.append("(").append(stmt).append(")");
+    }
+    String[] output = new String[out.size() + 1];
+    output[0] = outsql.toString();
+    for (int i = 0; i < out.size(); i++) {
+      output[i + 1] = out.get(i);
+    }
+    return output;
+  }
 
-        clone.exactTime.addAll(exactTime);
-        clone.uids.addAll(uids);
-        clone.targets.addAll(targets);
-        clone.users.addAll(users);
-        clone.actions.addAll(actions);
-        clone.datas.addAll(datas);
-        clone.worlds.addAll(worlds);
-        clone.flags.addAll(flags);
-        clone.ratings.addAll(ratings);
-        clone.radius.putAll(radius);
+  private Parameters time(String param, boolean before) throws ParseException {
+    try {
+      long time = TimeUtil.stringToMillis(param);
+      if (time < 0) {
+        throw new ParseException(Language.L.INVALID_PARAMETER, param);
+      }
+      if (!param.endsWith("e")) {
+        time = System.currentTimeMillis() - time;
+      }
+      if (before) {
+        this.before = time;
+      } else {
+        this.after = time;
+      }
+    } catch (NumberFormatException e) {
+      throw new ParseException(Language.L.INVALID_PARAMETER, param);
+    }
+    return this;
+  }
 
-        clone.negateUser = negateUser;
-        clone.negateTarget = negateTarget;
-        clone.negateData = negateData;
-        clone.negateWorld = negateWorld;
+  private int distance(DbEntry entry) {
+    if (world < 0) {
+      return -1;
+    }
+    if (plugin.getSqlManager().getWID(entry.getWorld()) != world) {
+      return Integer.MAX_VALUE;
+    }
+    return Math.max(Math.max(Math.abs(entry.getX() - getX()), Math.abs(entry.getY() - getY())),
+        Math.abs(entry.getZ() - getZ()));
+  }
 
-        clone.after = after;
-        clone.before = Long.MAX_VALUE;
-        clone.table = table;
+  private String toGroup(Set<?> set) {
+    StringBuilder stmt = new StringBuilder("(");
+    boolean first = true;
+    for (Object id : set) {
+      if (first) {
+        first = false;
+      } else {
+        stmt.append(",");
+      }
+      stmt.append(id);
+    }
+    return stmt + ")";
+  }
 
-        clone.groupRange = groupRange;
+  @SuppressWarnings("MethodDoesntCallSuperMethod")
+  @Override
+  public Parameters clone() {
+    Parameters clone = new Parameters();
 
-        clone.world = world;
-        clone.x = x;
-        clone.y = y;
-        clone.z = z;
+    clone.exactTime.addAll(exactTime);
+    clone.uids.addAll(uids);
+    clone.targets.addAll(targets);
+    clone.users.addAll(users);
+    clone.actions.addAll(actions);
+    clone.datas.addAll(datas);
+    clone.worlds.addAll(worlds);
+    clone.flags.addAll(flags);
+    clone.ratings.addAll(ratings);
+    clone.radius.putAll(radius);
 
-        return clone;
+    clone.negateUser = negateUser;
+    clone.negateTarget = negateTarget;
+    clone.negateData = negateData;
+    clone.negateWorld = negateWorld;
+
+    clone.after = after;
+    clone.before = Long.MAX_VALUE;
+    clone.table = table;
+
+    clone.groupRange = groupRange;
+
+    clone.world = world;
+    clone.x = x;
+    clone.y = y;
+    clone.z = z;
+
+    return clone;
+  }
+
+  public enum Flag {
+    COUNT(null), COUNT_ONLY(null), PLAYTIME(APPermission.LOOKUP_PLAYTIME), XRAY(
+        APPermission.LOOKUP_XRAY), COMBINE_USER_TARGET(null),
+    MONEY(APPermission.LOOKUP_MONEY), ACTIVITY(APPermission.LOOKUP_ACTIVITY), PLAYBACK(
+        APPermission.LOOKUP_PLAYBACK), INCREMENTAL_POS(APPermission.LOOKUP_PLAYBACK),
+    RETENTION(APPermission.LOOKUP_RETENTION), HIDE_COORDS(null), RADIUS_HORIZONTAL_ONLY(
+        null), ONLY_USER2(null), HIDE_DATA(null);
+
+    private final APPermission perm;
+
+    Flag(APPermission perm) {
+      this.perm = perm;
     }
 
-    public enum Flag {
-        COUNT(null), COUNT_ONLY(null), PLAYTIME(APPermission.LOOKUP_PLAYTIME), XRAY(APPermission.LOOKUP_XRAY), COMBINE_USER_TARGET(null),
-        MONEY(APPermission.LOOKUP_MONEY), ACTIVITY(APPermission.LOOKUP_ACTIVITY), PLAYBACK(APPermission.LOOKUP_PLAYBACK), INCREMENTAL_POS(APPermission.LOOKUP_PLAYBACK),
-        RETENTION(APPermission.LOOKUP_RETENTION), HIDE_COORDS(null), RADIUS_HORIZONTAL_ONLY(null), ONLY_USER2(null), HIDE_DATA(null);
-
-        private final APPermission perm;
-
-        Flag(APPermission perm) {
-            this.perm = perm;
-        }
-
-        public boolean hasPermission(SenderAdapter sender) {
-            if (perm == null) {
-                return true;
-            }
-            return perm.hasPermission(sender);
-        }
-
-        public boolean isEnabled() {
-            if (this == PLAYBACK || this == INCREMENTAL_POS || this == XRAY || this == RETENTION) {
-                return AuxProtectAPI.getInstance().isPrivate();
-            }
-            return true;
-        }
+    public boolean hasPermission(SenderAdapter sender) {
+      if (perm == null) {
+        return true;
+      }
+      return perm.hasPermission(sender);
     }
+
+    public boolean isEnabled() {
+      if (this == PLAYBACK || this == INCREMENTAL_POS || this == XRAY || this == RETENTION) {
+        return AuxProtectAPI.getInstance().isPrivate();
+      }
+      return true;
+    }
+  }
 }

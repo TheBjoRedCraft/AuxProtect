@@ -3,6 +3,7 @@ package dev.heliosares.auxprotect.database.repository
 import dev.heliosares.auxprotect.database.schema.InvBlobTable
 import dev.heliosares.auxprotect.database.schema.TransactionsBlobTable
 import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.statements.api.ExposedBlob
 import java.util.concurrent.ConcurrentHashMap
 
 /**

@@ -41,7 +41,7 @@ data class DatabaseConfig(
                 sqliteFile = sqliteFile,
                 tablePrefix = prefix,
                 poolSize = if (isMySQL) 10 else 1,
-                isIndexing = config.isIndexing
+                isIndexing = config.indexing
             )
         }
     }

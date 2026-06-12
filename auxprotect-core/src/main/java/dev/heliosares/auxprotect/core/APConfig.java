@@ -5,225 +5,234 @@ import dev.heliosares.auxprotect.database.Table;
 import dev.heliosares.auxprotect.utils.KeyUtil;
 import dev.heliosares.auxprotect.utils.TimeUtil;
 import dev.heliosares.auxprotect.utils.YamlConfig;
-import lombok.Getter;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Scanner;
 import java.util.function.Supplier;
+import lombok.Getter;
 
 public class APConfig {
 
-    private IAuxProtect plugin;
-    @Getter
-    private boolean inventoryOnWorldChange;
-    private boolean checkforupdates;
-    @Getter
-    private long posInterval;
-    @Getter
-    private long inventoryInterval;
-    @Getter
-    private long inventoryDiffInterval;
-    @Getter
-    private long moneyInterval;
-    @Getter
-    private long townBankInterval;
-    @Getter
-    private long nationBankInterval;
-    @Getter
-    private boolean overrideCommands;
-    private boolean logIncrementalPosition;
-    private boolean disableVacuum;
-    @Getter
-    private boolean consoleSQL;
-    @Getter
-    private boolean sessionLogIP;
-    @Getter
-    private boolean skipRowCount;
-    private KeyUtil key;
-    @Getter
-    private YamlConfig config;
-    @Getter
-    private int debug;
-    private boolean mysql;
-    @Getter
-    private String host;
-    @Getter
-    private String port;
-    @Getter
-    private String user;
-    @Getter
-    private String pass;
-    @Getter
-    private String database;
-    private String tablePrefix;
-    @Getter
-    private long autoPurgePeriodicity;
-    @Getter
-    private boolean demoMode;
-    @Getter
-    private boolean sanitizeUnicode;
-    @Getter
-    private boolean indexing;
-    @Getter
-    private boolean migrateDataNormalization;
+  @Getter
+  public boolean consoleSQL;
+  @Getter
+  public boolean sessionLogIP;
+  @Getter
+  public boolean skipRowCount;
+  public KeyUtil key;
+  @Getter
+  public YamlConfig config;
+  @Getter
+  public int debug;
+  public boolean mysql;
+  @Getter
+  public String host;
+  @Getter
+  public String port;
+  @Getter
+  public String user;
+  @Getter
+  public String pass;
+  @Getter
+  public String database;
+  public String tablePrefix;
+  @Getter
+  public long autoPurgePeriodicity;
+  @Getter
+  public boolean demoMode;
+  @Getter
+  public boolean sanitizeUnicode;
+  @Getter
+  public boolean indexing;
+  @Getter
+  public boolean migrateDataNormalization;
+  private IAuxProtect plugin;
+  @Getter
+  private boolean inventoryOnWorldChange;
+  private boolean checkforupdates;
+  @Getter
+  private long posInterval;
+  @Getter
+  private long inventoryInterval;
+  @Getter
+  private long inventoryDiffInterval;
+  @Getter
+  private long moneyInterval;
+  @Getter
+  private long townBankInterval;
+  @Getter
+  private long nationBankInterval;
+  @Getter
+  private boolean overrideCommands;
+  private boolean logIncrementalPosition;
+  private boolean disableVacuum;
 
-    public void load(IAuxProtect plugin, File file, Supplier<InputStream> streamSupplier) throws IOException {
-        this.plugin = plugin;
-        this.config = new YamlConfig(file, streamSupplier);
-        reload();
+  public void load(IAuxProtect plugin, File file, Supplier<InputStream> streamSupplier)
+      throws IOException {
+    this.plugin = plugin;
+    this.config = new YamlConfig(file, streamSupplier);
+    reload();
+  }
+
+  public void reload() throws IOException {
+    config.load();
+    loadKey(plugin);
+    this.debug = config.getInt("debug").orElse(0);
+    checkforupdates = config.getBoolean("checkforupdates").orElse(true);
+    mysql = config.getBoolean("MySQL.use").orElse(false);
+    if (mysql) {
+      user = config.getString("MySQL.username").orElse("");
+      pass = config.getString("MySQL.password").orElse("");
+      host = config.getString("MySQL.host").orElse("localhost");
+      port = config.getString("MySQL.port").orElse("3306");
+      database = config.getString("MySQL.database").orElse("database");
+      tablePrefix = config.getString("MySQL.table-prefix").orElse("");
+    } else {
+      disableVacuum = config.getBoolean("disablevacuum").orElse(false);
+    }
+    consoleSQL = config.getBoolean("ConsoleSQLCommands").orElse(false);
+    if (plugin.getPlatform().getLevel() == PlatformType.Level.SERVER) {
+      overrideCommands = config.getBoolean("OverrideCommands").orElse(false);
+      inventoryOnWorldChange = config.getBoolean("Actions.inventory.WorldChange").orElse(false);
+      posInterval = config.getLong("Actions.pos.Interval").orElse(10000L);
+      inventoryInterval = config.getLong("Actions.inventory.Interval").orElse(3600000L);
+      inventoryDiffInterval = config.getLong("Actions.inventory.Diff-Interval").orElse(0L);
+      moneyInterval = config.getLong("Actions.money.Interval").orElse(60000L);
+      townBankInterval = config.getLong("Actions.townbank.Interval").orElse(5000L);
+      nationBankInterval = config.getLong("Actions.nationbank.Interval").orElse(5000L);
+      logIncrementalPosition = config.getBoolean("Actions.pos.Incremental").orElse(false);
+    }
+    sanitizeUnicode = config.getBoolean("SanitizeUnicode").orElse(false);
+    sessionLogIP = config.getBoolean("Actions.session.LogIP").orElse(true);
+    skipRowCount = config.getBoolean("SkipRowCount").orElse(false);
+    for (EntryAction action : EntryAction.values()) {
+      if (!action.exists()) {
+        action.setEnabled(false);
+        continue;
+      }
+      if (action == EntryAction.USERNAME) {
+        action.setEnabled(true);
+        continue;
+      }
+      boolean enabled = config.getBoolean("Actions." + action.toString().toLowerCase() + ".Enabled")
+          .orElse(true);
+      boolean priority = config.getBoolean(
+          "Actions." + action.toString().toLowerCase() + ".LowestPriority").orElse(false);
+      action.setEnabled(enabled);
+      action.setLowestpriority(priority);
+      config.set("Actions." + action.toString().toLowerCase() + ".Enabled", enabled);
     }
 
-    public void reload() throws IOException {
-        config.load();
-        loadKey(plugin);
-        this.debug = config.getInt("debug").orElse(0);
-        checkforupdates = config.getBoolean("checkforupdates").orElse(true);
-        mysql = config.getBoolean("MySQL.use").orElse(false);
-        if (mysql) {
-            user = config.getString("MySQL.username").orElse("");
-            pass = config.getString("MySQL.password").orElse("");
-            host = config.getString("MySQL.host").orElse("localhost");
-            port = config.getString("MySQL.port").orElse("3306");
-            database = config.getString("MySQL.database").orElse("database");
-            tablePrefix = config.getString("MySQL.table-prefix").orElse("");
-        } else {
-            disableVacuum = config.getBoolean("disablevacuum").orElse(false);
+    if (config.getBoolean("AutoPurge.Enabled").orElse(false)) {
+      autoPurgePeriodicity = TimeUtil.stringToMillis(
+          config.getString("AutoPurge.periodicity").orElse(""));
+    }
+    long autopurgeinterval = getAutoPurgeInterval("default", -1);
+    for (Table table : Table.values()) {
+      if (table.exists(plugin) && table.canPurge()) {
+        long purge = getAutoPurgeInterval("Table." + table.getName(), autopurgeinterval);
+        if (getAutoPurgePeriodicity()
+            > 0) { // Checking here instead of at the beginning allows defaults to be set at first
+          // run
+          table.setAutoPurgeInterval(purge);
         }
-        consoleSQL = config.getBoolean("ConsoleSQLCommands").orElse(false);
-        if (plugin.getPlatform().getLevel() == PlatformType.Level.SERVER) {
-            overrideCommands = config.getBoolean("OverrideCommands").orElse(false);
-            inventoryOnWorldChange = config.getBoolean("Actions.inventory.WorldChange").orElse(false);
-            posInterval = config.getLong("Actions.pos.Interval").orElse(10000L);
-            inventoryInterval = config.getLong("Actions.inventory.Interval").orElse(3600000L);
-            inventoryDiffInterval = config.getLong("Actions.inventory.Diff-Interval").orElse(0L);
-            moneyInterval = config.getLong("Actions.money.Interval").orElse(60000L);
-            townBankInterval = config.getLong("Actions.townbank.Interval").orElse(5000L);
-            nationBankInterval = config.getLong("Actions.nationbank.Interval").orElse(5000L);
-            logIncrementalPosition = config.getBoolean("Actions.pos.Incremental").orElse(false);
-        }
-        sanitizeUnicode = config.getBoolean("SanitizeUnicode").orElse(false);
-        sessionLogIP = config.getBoolean("Actions.session.LogIP").orElse(true);
-        skipRowCount = config.getBoolean("SkipRowCount").orElse(false);
-        for (EntryAction action : EntryAction.values()) {
-            if (!action.exists()) {
-                action.setEnabled(false);
-                continue;
-            }
-            if (action == EntryAction.USERNAME) {
-                action.setEnabled(true);
-                continue;
-            }
-            boolean enabled = config.getBoolean("Actions." + action.toString().toLowerCase() + ".Enabled").orElse(true);
-            boolean priority = config.getBoolean("Actions." + action.toString().toLowerCase() + ".LowestPriority").orElse(false);
-            action.setEnabled(enabled);
-            action.setLowestpriority(priority);
-            config.set("Actions." + action.toString().toLowerCase() + ".Enabled", enabled);
-        }
+      }
+    }
+    demoMode = config.getBoolean("demomode").orElse(false);
+    indexing = config.getBoolean("Indexing").orElse(false);
+    migrateDataNormalization = config.getBoolean("MigrateDataNormalization").orElse(false);
+    config.save();
+  }
 
-        if (config.getBoolean("AutoPurge.Enabled").orElse(false)) {
-            autoPurgePeriodicity = TimeUtil.stringToMillis(config.getString("AutoPurge.periodicity").orElse(""));
-        }
-        long autopurgeinterval = getAutoPurgeInterval("default", -1);
-        for (Table table : Table.values()) {
-            if (table.exists(plugin) && table.canPurge()) {
-                long purge = getAutoPurgeInterval("Table." + table.getName(), autopurgeinterval);
-                if (getAutoPurgePeriodicity() > 0) { // Checking here instead of at the beginning allows defaults to be set at first
-                    // run
-                    table.setAutoPurgeInterval(purge);
-                }
-            }
-        }
-        demoMode = config.getBoolean("demomode").orElse(false);
-        indexing = config.getBoolean("Indexing").orElse(false);
-        migrateDataNormalization = config.getBoolean("MigrateDataNormalization").orElse(false);
-        config.save();
+  private long getAutoPurgeInterval(String table, long autopurgeinterval) {
+    String interval = config.getString("AutoPurge." + table).orElse(null);
+    if (interval == null) {
+      interval = "default";
+    }
+    config.set("AutoPurge." + table, interval);
+    if (interval.equalsIgnoreCase("off") || interval.equals("-1") || interval.equals("0")) {
+      return -1;
+    }
+    if (interval.equalsIgnoreCase("default") && autopurgeinterval >= Table.MIN_PURGE_INTERVAL) {
+      return autopurgeinterval;
+    }
+    try {
+      long time = TimeUtil.stringToMillis(interval);
+      if (time >= Table.MIN_PURGE_INTERVAL || time == 0) {
+        return time;
+      } else {
+        plugin.warning(
+            "Auto purge interval for '" + table + "' too short: '" + interval + "', min 2w");
+      }
+    } catch (NumberFormatException e) {
+      plugin.warning(
+          "Error in config, (AutoPurge." + table + "=" + interval + "): " + e.getMessage());
+    }
+    return -1;
+  }
+
+  private void loadKey(IAuxProtect plugin) {
+    String key = null;
+    try (Scanner sc = new Scanner(new File(plugin.getRootDirectory(), "donorkey.txt"))) {
+      key = sc.nextLine();
+    } catch (Exception ignored) {
+    }
+    if (key != null) {
+      this.key = new KeyUtil(key);
     }
 
-    private long getAutoPurgeInterval(String table, long autopurgeinterval) {
-        String interval = config.getString("AutoPurge." + table).orElse(null);
-        if (interval == null) interval = "default";
-        config.set("AutoPurge." + table, interval);
-        if (interval.equalsIgnoreCase("off") || interval.equals("-1") || interval.equals("0")) {
-            return -1;
-        }
-        if (interval.equalsIgnoreCase("default") && autopurgeinterval >= Table.MIN_PURGE_INTERVAL) {
-            return autopurgeinterval;
-        }
-        try {
-            long time = TimeUtil.stringToMillis(interval);
-            if (time >= Table.MIN_PURGE_INTERVAL || time == 0) {
-                return time;
-            } else {
-                plugin.warning("Auto purge interval for '" + table + "' too short: '" + interval + "', min 2w");
-            }
-        } catch (NumberFormatException e) {
-            plugin.warning("Error in config, (AutoPurge." + table + "=" + interval + "): " + e.getMessage());
-        }
-        return -1;
+    if (this.key != null) {
+      if (this.key.isMalformed()) {
+        plugin.info("Invalid donor key");
+        return;
+      }
+      if (isDonor()) {
+        plugin.info("Valid donor key!");
+        return;
+      }
     }
+    plugin.info("No donor key");
+  }
 
-    private void loadKey(IAuxProtect plugin) {
-        String key = null;
-        try (Scanner sc = new Scanner(new File(plugin.getRootDirectory(), "donorkey.txt"))) {
-            key = sc.nextLine();
-        } catch (Exception ignored) {
-        }
-        if (key != null) {
-            this.key = new KeyUtil(key);
-        }
+  public boolean shouldCheckForUpdates() {
+    return checkforupdates;
+  }
 
-        if (this.key != null) {
-            if (this.key.isMalformed()) {
-                plugin.info("Invalid donor key");
-                return;
-            }
-            if (isDonor()) {
-                plugin.info("Valid donor key!");
-                return;
-            }
-        }
-        plugin.info("No donor key");
+  public boolean isDonor() {
+    if (key == null) {
+      return false;
     }
+    return key.isValid();
+  }
 
-    public boolean shouldCheckForUpdates() {
-        return checkforupdates;
-    }
+  public String getKeyHolder() {
+    return key.getKeyHolder();
+  }
 
-    public boolean isDonor() {
-        if (key == null)
-            return false;
-        return key.isValid();
-    }
+  public void setDebug(int debug) throws IOException {
+    this.debug = debug;
+    config.set("debug", debug);
+    config.save();
+  }
 
-    public String getKeyHolder() {
-        return key.getKeyHolder();
-    }
+  public boolean isMySQL() {
+    return mysql;
+  }
 
-    public void setDebug(int debug) throws IOException {
-        this.debug = debug;
-        config.set("debug", debug);
-        config.save();
+  public String getTablePrefix() {
+    if (!mysql) {
+      return null;
     }
+    return tablePrefix;
+  }
 
-    public boolean isMySQL() {
-        return mysql;
-    }
+  public boolean doLogIncrementalPosition() {
+    return logIncrementalPosition;
+  }
 
-    public String getTablePrefix() {
-        if (!mysql) {
-            return null;
-        }
-        return tablePrefix;
-    }
-
-    public boolean doLogIncrementalPosition() {
-        return logIncrementalPosition;
-    }
-
-    public boolean doDisableVacuum() {
-        return disableVacuum;
-    }
+  public boolean doDisableVacuum() {
+    return disableVacuum;
+  }
 
 }

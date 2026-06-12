@@ -25,7 +25,6 @@ import dev.heliosares.auxprotect.paper.listeners.ChestShopListener;
 import dev.heliosares.auxprotect.paper.listeners.EconomyShopGUIListener;
 import dev.heliosares.auxprotect.paper.listeners.EntityListener;
 import dev.heliosares.auxprotect.paper.listeners.EssentialsListener;
-import dev.heliosares.auxprotect.paper.listeners.ExcellentCratesListener;
 import dev.heliosares.auxprotect.paper.listeners.InventoryListener;
 import dev.heliosares.auxprotect.paper.listeners.JobsListener;
 import dev.heliosares.auxprotect.paper.listeners.PaneListener;
@@ -263,10 +262,6 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
         }
       }
       EntryAction.TOWNYNAME.setEnabled(false);
-    }
-    if (!hook(() -> new ExcellentCratesListener(this), "ExcellentCrates")) {
-      EntryAction.CRATEOPEN.setEnabled(false);
-      EntryAction.CRATEREWARD.setEnabled(false);
     }
 
     claiminvcommand = new ClaimInvCommand(this);
@@ -599,7 +594,7 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
 
   @Override
   public void debug(String string, int verbosity) {
-    if (getAPConfig().getDebug() >= verbosity) {
+    if (false) { // config.getDebug() >= verbosity
       this.info("DEBUG" + verbosity + ": " + string);
     }
   }
