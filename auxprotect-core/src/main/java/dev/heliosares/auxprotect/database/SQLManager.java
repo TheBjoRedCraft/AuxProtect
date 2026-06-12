@@ -3,6 +3,8 @@ package dev.heliosares.auxprotect.database;
 import dev.heliosares.auxprotect.core.IAuxProtect;
 import dev.heliosares.auxprotect.core.Language;
 import dev.heliosares.auxprotect.core.PlatformType;
+import dev.heliosares.auxprotect.database.config.DatabaseConfig;
+import dev.heliosares.auxprotect.database.service.DatabaseService;
 import dev.heliosares.auxprotect.exceptions.AlreadyExistsException;
 import dev.heliosares.auxprotect.exceptions.LookupException;
 import dev.heliosares.auxprotect.utils.TimeUtil;
@@ -57,6 +59,9 @@ public class SQLManager extends ConnectionManager {
   private int nextActionId = 1;
   @Getter
   private long timeConnected;
+  @Getter
+  @Nullable
+  private DatabaseService databaseService;
 
   public SQLManager(IAuxProtect plugin, String host, String database, String prefix,
       File sqliteFile, String user, String pass)
@@ -136,6 +141,18 @@ public class SQLManager extends ConnectionManager {
     isConnected = true;
     plugin.info("Connected!");
 
+    // Initialize Exposed database service layer
+    try {
+      DatabaseConfig dbConfig = DatabaseConfig.fromAPConfig(plugin.getAPConfig(), sqliteFile);
+      this.databaseService = new DatabaseService(plugin, dbConfig);
+      databaseService.initialize();
+      databaseService.initializeQueryBuilder(this);
+    } catch (Exception e) {
+      plugin.warning("Failed to initialize Exposed database service layer. Continuing with legacy layer.");
+      plugin.print(e);
+      this.databaseService = null;
+    }
+
     // Auto Purge
     out:
     if (plugin.getAPConfig().getAutoPurgePeriodicity() > 0) {
@@ -187,6 +204,10 @@ public class SQLManager extends ConnectionManager {
 
   public void close() {
     isConnected = false;
+    if (databaseService != null) {
+      databaseService.shutdown();
+      databaseService = null;
+    }
     super.close();
   }
 
@@ -716,6 +737,9 @@ public class SQLManager extends ConnectionManager {
     }
     if (transactionBlobManager != null) {
       transactionBlobManager.cleanup();
+    }
+    if (databaseService != null) {
+      databaseService.cleanup();
     }
   }
 
