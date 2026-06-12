@@ -31,7 +31,7 @@ object DatabaseFactory {
                 maximumPoolSize = config.poolSize
                 minimumIdle = 2
                 idleTimeout = 300_000 // 5 minutes
-                maxLifetime = 600_000 // 10 minutes
+                maxLifetime = 1_800_000 // 30 minutes
                 connectionTimeout = 30_000 // 30 seconds
 
                 // Prepared statement cache for MySQL/MariaDB

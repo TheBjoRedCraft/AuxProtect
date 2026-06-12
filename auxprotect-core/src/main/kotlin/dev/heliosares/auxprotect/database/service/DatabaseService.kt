@@ -81,7 +81,8 @@ class DatabaseService(
         val startTime = System.currentTimeMillis()
 
         // Create dispatcher with backend-specific thread pool
-        dispatcher = DatabaseDispatcher(if (config.isMySQL) 4 else 1)
+        val dbThreadPoolSize = if (config.isMySQL) config.poolSize.coerceAtMost(config.poolSize) else 1
+        dispatcher = DatabaseDispatcher(dbThreadPoolSize)
 
         // Connect to database via HikariCP
         database = DatabaseFactory.create(config)

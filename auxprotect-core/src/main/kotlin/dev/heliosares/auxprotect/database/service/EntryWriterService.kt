@@ -95,26 +95,32 @@ class EntryWriterService(
 
             if (entries.isNotEmpty()) {
                 try {
+                    // Pre-resolve all IDs outside of Exposed's non-suspend batchInsert block
+                    val worldIdCache = mutableMapOf<String, Int>()
+                    val uidCache = mutableMapOf<String?, Int>()
+                    val targetIdCache = mutableMapOf<String?, Int>()
+
+                    for (e in entries) {
+                        val world = e.world
+                        if (world != null && world !in worldIdCache) {
+                            worldIdCache[world] = databaseService.worldRepository.getOrCreateWorldId(world) { plugin.doesWorldExist(it) }
+                        }
+                        val userUUID = e.getUserUUID()
+                        if (userUUID !in uidCache) {
+                            uidCache[userUUID] = databaseService.userRepository.getUID(userUUID, true)
+                        }
+                        val targetUUID = e.getTargetUUID()
+                        if (targetUUID !in targetIdCache) {
+                            targetIdCache[targetUUID] = databaseService.userRepository.getUID(targetUUID, true)
+                        }
+                    }
+
                     databaseService.entryRepository.batchInsert(
                         table = table,
                         entries = entries,
-                        worldIdResolver = { world ->
-                            if (world != null) {
-                                runBlocking {
-                                    databaseService.worldRepository.getOrCreateWorldId(world) { plugin.doesWorldExist(it) }
-                                }
-                            } else -1
-                        },
-                        uidResolver = { e ->
-                            runBlocking {
-                                databaseService.userRepository.getUID(e.getUserUUID(), true)
-                            }
-                        },
-                        targetIdResolver = { e ->
-                            runBlocking {
-                                databaseService.userRepository.getUID(e.getTargetUUID(), true)
-                            }
-                        }
+                        worldIdResolver = { world -> if (world != null) worldIdCache[world] ?: -1 else -1 },
+                        uidResolver = { e -> uidCache[e.getUserUUID()] ?: -1 },
+                        targetIdResolver = { e -> targetIdCache[e.getTargetUUID()] ?: -1 }
                     )
                 } catch (e: Exception) {
                     plugin.print(e)

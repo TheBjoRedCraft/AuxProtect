@@ -2,7 +2,6 @@ package dev.heliosares.auxprotect.database.repository
 
 import dev.heliosares.auxprotect.database.EntryAction
 import dev.heliosares.auxprotect.database.Snowflake
-import dev.heliosares.auxprotect.database.schema.LongtermTable
 import dev.heliosares.auxprotect.database.schema.UidsTable
 import dev.heliosares.auxprotect.database.schema.UserDataPendInvTable
 import dev.heliosares.auxprotect.database.schema.AuxProtectLongtermTable

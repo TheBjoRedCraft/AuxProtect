@@ -94,8 +94,10 @@ class MetadataRepository(
                     lastsTable.insert { stmt ->
                         stmt[name] = keyId
                     }
-                } catch (_: Exception) {
-                    // Already exists (race condition)
+                } catch (_: java.sql.SQLIntegrityConstraintViolationException) {
+                    // Already exists (race condition with concurrent insert)
+                } catch (_: org.jetbrains.exposed.exceptions.ExposedSQLException) {
+                    // SQLite uses a different exception hierarchy for constraint violations
                 }
             }
         }

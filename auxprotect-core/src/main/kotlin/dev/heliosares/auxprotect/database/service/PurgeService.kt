@@ -5,7 +5,6 @@ import dev.heliosares.auxprotect.database.Table
 import dev.heliosares.auxprotect.database.repository.EntryRepository
 import dev.heliosares.auxprotect.database.repository.MetadataRepository
 import dev.heliosares.auxprotect.database.SQLManager
-import kotlinx.coroutines.runBlocking
 
 /**
  * Service for purging old entries from the database.
@@ -63,11 +62,9 @@ class PurgeService(
         // raw connection access outside of Exposed's transaction model
         try {
             plugin.sqlManager?.let { sql ->
-                runBlocking {
-                    sql.execute({ connection ->
-                        sql.vacuum(connection)
-                    }, 0L)
-                }
+                sql.execute({ connection ->
+                    sql.vacuum(connection)
+                }, 0L)
             }
         } catch (e: Exception) {
             plugin.print(e)

@@ -32,10 +32,6 @@ class AuxProtectMainTable(prefix: String = tablePrefix) :
 
     override val primaryKey = PrimaryKey(time)
 
-    companion object {
-        @JvmStatic
-        var tablePrefix: String = ""
-    }
 }
 
 /** AUXPROTECT_SPAM — same structure as main */
