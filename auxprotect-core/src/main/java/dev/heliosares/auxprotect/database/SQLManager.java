@@ -113,37 +113,7 @@ public class SQLManager extends ConnectionManager {
   public void init(Connection connection) throws SQLException {
     timeConnected = System.currentTimeMillis();
 
-    try {
-      plugin.info("Initializing Exposed database service...");
-
-      DatabaseConfig dbConfig = DatabaseConfig.fromAPConfig(plugin.getAPConfig(), sqliteFile);
-
-      this.databaseService = new DatabaseService(plugin, dbConfig);
-      databaseService.initialize();
-      databaseService.initializeQueryBuilder(this);
-
-      isConnected = true;
-      isConnectedAndInitDone = true;
-
-      plugin.info("Connected via Exposed!");
-      plugin.info("Init done.");
-
-      return;
-    } catch (Exception e) {
-      plugin.warning(
-          "Failed to initialize Exposed database service layer. Falling back to legacy layer.");
-      plugin.print(e);
-
-      if (databaseService != null) {
-        try {
-          databaseService.shutdown();
-        } catch (Exception ignored) {
-        }
-        databaseService = null;
-      }
-    }
-
-    plugin.info("Connecting to database (legacy mode)...");
+    plugin.info("Connecting to database...");
 
     try {
       executeTransaction(connection, () -> {
@@ -168,6 +138,13 @@ public class SQLManager extends ConnectionManager {
       }
       throw e;
     }
+
+    plugin.info("Initializing Exposed database service...");
+
+    DatabaseConfig dbConfig = DatabaseConfig.fromAPConfig(plugin.getAPConfig(), sqliteFile);
+    this.databaseService = new DatabaseService(plugin, dbConfig);
+    databaseService.initialize();
+    databaseService.initializeQueryBuilder(this);
 
     isConnected = true;
     plugin.info("Connected!");
@@ -827,10 +804,16 @@ public class SQLManager extends ConnectionManager {
 
   @Nullable
   public String getMigrationStatus() {
-    if (migrationmanager == null) {
-      return null;
+    if (migrationmanager != null) {
+      String status = migrationmanager.getProgressString();
+      if (status != null) {
+        return status;
+      }
     }
-    return migrationmanager.getProgressString();
+    if (databaseService != null) {
+      return databaseService.getMigrationStatus();
+    }
+    return null;
   }
 
   protected IAuxProtect getPlugin() {
