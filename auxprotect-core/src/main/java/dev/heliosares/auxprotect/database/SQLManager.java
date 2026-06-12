@@ -26,8 +26,10 @@ import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Getter;
 
@@ -323,22 +325,54 @@ public class SQLManager extends ConnectionManager {
     execute(connection, "CREATE TABLE IF NOT EXISTS " + Table.AUXPROTECT_API_ACTIONS
         + " (name varchar(255), nid SMALLINT, pid SMALLINT, ntext varchar(255), ptext varchar(255), owner varchar(255), created BIGINT)");
 
-    try (Statement statement = connection.createStatement()) {
-      try (ResultSet results = statement.executeQuery(
-          "SELECT * FROM " + Table.AUXPROTECT_API_ACTIONS)) {
-        while (results.next()) {
-          String key = results.getString("name");
-          int nid = results.getInt("nid");
-          int pid = results.getInt("pid");
-          String ntext = results.getString("ntext");
-          String ptext = results.getString("ptext");
-          nextActionId = Math.max(nextActionId, Math.max(nid, pid) + 1);
-          if (pid < 0) {
-            new EntryAction(key, nid, ntext, Table.AUXPROTECT_API);
-          } else {
-            new EntryAction(key, nid, pid, ntext, ptext, Table.AUXPROTECT_API);
-          }
+    List<Object[]> apiActionRows = new ArrayList<>();
+    try (Statement statement = connection.createStatement();
+        ResultSet results = statement.executeQuery(
+            "SELECT * FROM " + Table.AUXPROTECT_API_ACTIONS)) {
+      while (results.next()) {
+        apiActionRows.add(new Object[]{
+            results.getString("name"),
+            results.getInt("nid"),
+            results.getInt("pid"),
+            results.getString("ntext"),
+            results.getString("ptext")
+        });
+      }
+    }
+    Set<String> seenNames = new HashSet<>();
+    Set<Integer> seenIds = new HashSet<>();
+    for (Object[] row : apiActionRows) {
+      String key = (String) row[0];
+      int nid = (int) row[1];
+      int pid = (int) row[2];
+      String ntext = (String) row[3];
+      String ptext = (String) row[4];
+      nextActionId = Math.max(nextActionId, Math.max(nid, pid) + 1);
+      boolean isDuplicate = seenNames.contains(key) || seenIds.contains(nid)
+          || (pid >= 0 && seenIds.contains(pid));
+      // Always mark these ids as used, even for duplicates, to block other entries from reusing them
+      seenIds.add(nid);
+      if (pid >= 0) {
+        seenIds.add(pid);
+      }
+      if (isDuplicate) {
+        plugin.warning(
+            "Duplicate API action '" + key + "' (nid=" + nid + ") found in database. Removing.");
+        execute(connection,
+            "DELETE FROM " + Table.AUXPROTECT_API_ACTIONS + " WHERE name=? AND nid=?", key, nid);
+        continue;
+      }
+      seenNames.add(key);
+      try {
+        if (pid < 0) {
+          new EntryAction(key, nid, ntext, Table.AUXPROTECT_API);
+        } else {
+          new EntryAction(key, nid, pid, ntext, ptext, Table.AUXPROTECT_API);
         }
+      } catch (IllegalArgumentException e) {
+        // This can happen when createAction was called concurrently before createTables
+        // ran and already registered this action in memory. Log and skip.
+        plugin.warning("Failed to load API action '" + key + "' (nid=" + nid + "): " + e.getMessage());
       }
     }
   }
@@ -629,6 +663,16 @@ public class SQLManager extends ConnectionManager {
     EntryAction preexisting = EntryAction.getAction(key);
     if (preexisting != null) {
       throw new AlreadyExistsException(preexisting);
+    }
+
+    // Also check the database in case the action was created in a previous session but
+    // has not yet been loaded into memory (e.g. createAction was called before
+    // createTables finished loading). This prevents inserting a duplicate row.
+    boolean existsInDb = Boolean.TRUE.equals(
+        query("SELECT 1 FROM " + Table.AUXPROTECT_API_ACTIONS + " WHERE name=? LIMIT 1",
+            ResultSet::next, 30000L, key));
+    if (existsInDb) {
+      throw new AlreadyExistsException(null);
     }
 
     int pid, nid;
