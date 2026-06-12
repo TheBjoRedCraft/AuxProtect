@@ -5,6 +5,7 @@ plugins {
     id("de.eldoria.plugin-yml.paper") version "0.8.0"
     id("io.freefair.lombok") version "9.2.0"
     id("com.gradleup.shadow") version "9.4.0"
+    kotlin("jvm")
 }
 
 paper {
