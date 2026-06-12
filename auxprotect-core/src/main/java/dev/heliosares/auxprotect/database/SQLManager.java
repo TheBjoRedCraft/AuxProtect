@@ -350,7 +350,8 @@ public class SQLManager extends ConnectionManager {
       nextActionId = Math.max(nextActionId, Math.max(nid, pid) + 1);
       boolean isDuplicate = seenNames.contains(key) || seenIds.contains(nid)
           || (pid >= 0 && seenIds.contains(pid));
-      // Always mark these ids as used, even for duplicates, to block other entries from reusing them
+      // Always mark these ids as used, even for duplicates, so that later entries sharing a nid/pid
+      // are also detected as duplicates (mirrors the check performed by validateID).
       seenIds.add(nid);
       if (pid >= 0) {
         seenIds.add(pid);
