@@ -5,6 +5,7 @@ plugins {
     id("de.eldoria.plugin-yml.paper") version "0.8.0"
     id("io.freefair.lombok") version "9.2.0"
     id("com.gradleup.shadow") version "9.4.0"
+    kotlin("jvm")
 }
 
 paper {
@@ -113,9 +114,6 @@ dependencies {
 
     compileOnly("com.github.Heliosares:AuctionHouseAPI:756e099dff")
     compileOnly("com.olziedev:playerauctions-api:1.27.3")
-
-    implementation("su.nightexpress.excellentcrates:ExcellentCrates:6.5.0")
-    implementation("su.nightexpress.nightcore:main:2.10.0")
 }
 
 tasks.shadowJar {

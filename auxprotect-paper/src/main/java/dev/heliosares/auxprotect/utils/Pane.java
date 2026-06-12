@@ -32,10 +32,7 @@ public class Pane implements InventoryHolder {
   }
 
   public static void shutdown() {
-    openPanes.forEach((p) -> {
-      p.cancelled = true;
-      p.getPlayer().closeInventory();
-    });
+    openPanes.forEach((p) -> p.cancelled = true);
   }
 
   @Nonnull
@@ -55,15 +52,15 @@ public class Pane implements InventoryHolder {
 
   public void addButton(int slot, Material type, Runnable action, @Nullable String name,
       @Nullable List<String> lore) {
-      if (inventory == null) {
-          throw new IllegalStateException("Inventory not set before adding button");
-      }
+    if (inventory == null) {
+      throw new IllegalStateException("Inventory not set before adding button");
+    }
 
     ItemStack item = new ItemStack(type);
     ItemMeta meta = item.getItemMeta();
-      if (meta == null) {
-          throw new IllegalArgumentException("Null meta on specified item");
-      }
+    if (meta == null) {
+      throw new IllegalArgumentException("Null meta on specified item");
+    }
     if (name != null) {
       meta.setDisplayName(name);
     }

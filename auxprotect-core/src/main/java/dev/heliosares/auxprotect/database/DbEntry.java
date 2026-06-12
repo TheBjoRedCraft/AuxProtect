@@ -18,24 +18,24 @@ import net.kyori.adventure.text.format.NamedTextColor;
 public class DbEntry {
 
   @Getter
-  protected final String world;
+  public final String world;
   @Getter
-  protected final int x, y, z, pitch, yaw;
+  public final int x, y, z, pitch, yaw;
   @Getter
-  protected final EntryAction action;
-  protected final boolean state;
+  public final EntryAction action;
+  public final boolean state;
   @Getter
-  private final long snowflake;
-  protected SQLManager sql;
+  public final long snowflake;
+  public SQLManager sql;
   @Setter
   @Getter
-  protected String data;
-  protected String userLabel;
-  protected String user;
-  protected int uid;
-  protected String targetLabel;
-  protected String target;
-  protected int target_id;
+  public String data;
+  public String userLabel;
+  public String user;
+  public int uid;
+  public String targetLabel;
+  public String target;
+  public int target_id;
   private long blobid = -1;
   @Setter
   private byte[] blob;
@@ -65,7 +65,7 @@ public class DbEntry {
         SQLManager.getInstance());
   }
 
-  protected DbEntry(long snowflake, int uid, EntryAction action, boolean state, String world, int x,
+  public DbEntry(long snowflake, int uid, EntryAction action, boolean state, String world, int x,
       int y, int z,
       int pitch, int yaw, String target, int target_id, String data, SQLManager sql) {
     this.snowflake = snowflake;
@@ -206,7 +206,7 @@ public class DbEntry {
     return blobid;
   }
 
-  protected void setBlobID(long blobid) {
+  public void setBlobID(long blobid) {
     this.blobid = blobid;
   }
 

@@ -3,6 +3,8 @@ package dev.heliosares.auxprotect.database;
 import dev.heliosares.auxprotect.core.IAuxProtect;
 import dev.heliosares.auxprotect.core.Language;
 import dev.heliosares.auxprotect.core.PlatformType;
+import dev.heliosares.auxprotect.database.config.DatabaseConfig;
+import dev.heliosares.auxprotect.database.service.DatabaseService;
 import dev.heliosares.auxprotect.exceptions.AlreadyExistsException;
 import dev.heliosares.auxprotect.exceptions.LookupException;
 import dev.heliosares.auxprotect.utils.TimeUtil;
@@ -24,8 +26,10 @@ import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Getter;
 
@@ -34,11 +38,11 @@ public class SQLManager extends ConnectionManager {
   public static final int MAX_LOOKUP_SIZE = 500000;
   @Getter
   private static SQLManager instance;
+  @Getter
+  public final LookupManager lookupManager;
   private final IAuxProtect plugin;
   private final HashMap<String, Integer> worlds = new HashMap<>();
   private final File sqliteFile;
-  @Getter
-  private final LookupManager lookupManager;
   private final BlobManager invBlobManager;
   private final BlobManager transactionBlobManager;
   private final SQLUserManager usermanager;
@@ -57,6 +61,9 @@ public class SQLManager extends ConnectionManager {
   private int nextActionId = 1;
   @Getter
   private long timeConnected;
+  @Getter
+  @Nullable
+  private DatabaseService databaseService;
 
   public SQLManager(IAuxProtect plugin, String host, String database, String prefix,
       File sqliteFile, String user, String pass)
@@ -107,6 +114,7 @@ public class SQLManager extends ConnectionManager {
   @Override
   public void init(Connection connection) throws SQLException {
     timeConnected = System.currentTimeMillis();
+
     plugin.info("Connecting to database...");
 
     try {
@@ -133,10 +141,16 @@ public class SQLManager extends ConnectionManager {
       throw e;
     }
 
+    plugin.info("Initializing Exposed database service...");
+
+    DatabaseConfig dbConfig = DatabaseConfig.fromAPConfig(plugin.getAPConfig(), sqliteFile);
+    this.databaseService = new DatabaseService(plugin, dbConfig);
+    databaseService.initialize();
+    databaseService.initializeQueryBuilder(this);
+
     isConnected = true;
     plugin.info("Connected!");
 
-    // Auto Purge
     out:
     if (plugin.getAPConfig().getAutoPurgePeriodicity() > 0) {
       long timeSincePurge = System.currentTimeMillis() - getLast(connection, LastKeys.AUTO_PURGE);
@@ -145,13 +159,16 @@ public class SQLManager extends ConnectionManager {
             Language.L.COMMAND__PURGE__SKIPAUTO.translate(TimeUtil.millisToString(timeSincePurge)));
         break out;
       }
+
       boolean anypurge = false;
       int count = 0;
+
       for (Table table : Table.values()) {
         if (table.canPurge() && table.exists(plugin)) {
           if (table.getAutoPurgeInterval() >= Table.MIN_PURGE_INTERVAL) {
             anypurge = true;
             plugin.info(Language.L.COMMAND__PURGE__PURGING.translate(table.toString()));
+
             try {
               count += purge(table, table.getAutoPurgeInterval());
             } catch (Exception e) {
@@ -161,6 +178,7 @@ public class SQLManager extends ConnectionManager {
           }
         }
       }
+
       if (anypurge) {
         try {
           if (!isMySQL()) {
@@ -171,6 +189,7 @@ public class SQLManager extends ConnectionManager {
           plugin.print(e);
           break out;
         }
+
         plugin.info(Language.L.COMMAND__PURGE__COMPLETE_COUNT.translate(count));
         setLast(connection, LastKeys.AUTO_PURGE, System.currentTimeMillis());
       }
@@ -187,6 +206,10 @@ public class SQLManager extends ConnectionManager {
 
   public void close() {
     isConnected = false;
+    if (databaseService != null) {
+      databaseService.shutdown();
+      databaseService = null;
+    }
     super.close();
   }
 
@@ -302,22 +325,55 @@ public class SQLManager extends ConnectionManager {
     execute(connection, "CREATE TABLE IF NOT EXISTS " + Table.AUXPROTECT_API_ACTIONS
         + " (name varchar(255), nid SMALLINT, pid SMALLINT, ntext varchar(255), ptext varchar(255), owner varchar(255), created BIGINT)");
 
-    try (Statement statement = connection.createStatement()) {
-      try (ResultSet results = statement.executeQuery(
-          "SELECT * FROM " + Table.AUXPROTECT_API_ACTIONS)) {
-        while (results.next()) {
-          String key = results.getString("name");
-          int nid = results.getInt("nid");
-          int pid = results.getInt("pid");
-          String ntext = results.getString("ntext");
-          String ptext = results.getString("ptext");
-          nextActionId = Math.max(nextActionId, Math.max(nid, pid) + 1);
-          if (pid < 0) {
-            new EntryAction(key, nid, ntext, Table.AUXPROTECT_API);
-          } else {
-            new EntryAction(key, nid, pid, ntext, ptext, Table.AUXPROTECT_API);
-          }
+    List<Object[]> apiActionRows = new ArrayList<>();
+    try (Statement statement = connection.createStatement();
+        ResultSet results = statement.executeQuery(
+            "SELECT * FROM " + Table.AUXPROTECT_API_ACTIONS)) {
+      while (results.next()) {
+        apiActionRows.add(new Object[]{
+            results.getString("name"),
+            results.getInt("nid"),
+            results.getInt("pid"),
+            results.getString("ntext"),
+            results.getString("ptext")
+        });
+      }
+    }
+    Set<String> seenNames = new HashSet<>();
+    Set<Integer> seenIds = new HashSet<>();
+    for (Object[] row : apiActionRows) {
+      String key = (String) row[0];
+      int nid = (int) row[1];
+      int pid = (int) row[2];
+      String ntext = (String) row[3];
+      String ptext = (String) row[4];
+      nextActionId = Math.max(nextActionId, Math.max(nid, pid) + 1);
+      boolean isDuplicate = seenNames.contains(key) || seenIds.contains(nid)
+          || (pid >= 0 && seenIds.contains(pid));
+      // Always mark these ids as used, even for duplicates, so that later entries sharing a nid/pid
+      // are also detected as duplicates (mirrors the check performed by validateID).
+      seenIds.add(nid);
+      if (pid >= 0) {
+        seenIds.add(pid);
+      }
+      if (isDuplicate) {
+        plugin.warning(
+            "Duplicate API action '" + key + "' (nid=" + nid + ") found in database. Removing.");
+        execute(connection,
+            "DELETE FROM " + Table.AUXPROTECT_API_ACTIONS + " WHERE name=? AND nid=?", key, nid);
+        continue;
+      }
+      seenNames.add(key);
+      try {
+        if (pid < 0) {
+          new EntryAction(key, nid, ntext, Table.AUXPROTECT_API);
+        } else {
+          new EntryAction(key, nid, pid, ntext, ptext, Table.AUXPROTECT_API);
         }
+      } catch (IllegalArgumentException e) {
+        // This can happen when createAction was called concurrently before createTables
+        // ran and already registered this action in memory. Log and skip.
+        plugin.warning("Failed to load API action '" + key + "' (nid=" + nid + "): " + e.getMessage());
       }
     }
   }
@@ -610,6 +666,16 @@ public class SQLManager extends ConnectionManager {
       throw new AlreadyExistsException(preexisting);
     }
 
+    // Also check the database in case the action was created in a previous session but
+    // has not yet been loaded into memory (e.g. createAction was called before
+    // createTables finished loading). This prevents inserting a duplicate row.
+    boolean existsInDb = Boolean.TRUE.equals(
+        query("SELECT 1 FROM " + Table.AUXPROTECT_API_ACTIONS + " WHERE name=? LIMIT 1",
+            ResultSet::next, 30000L, key));
+    if (existsInDb) {
+      throw new AlreadyExistsException(null);
+    }
+
     int pid, nid;
     EntryAction action;
 
@@ -717,6 +783,9 @@ public class SQLManager extends ConnectionManager {
     if (transactionBlobManager != null) {
       transactionBlobManager.cleanup();
     }
+    if (databaseService != null) {
+      databaseService.cleanup();
+    }
   }
 
   public void tick() {
@@ -780,10 +849,16 @@ public class SQLManager extends ConnectionManager {
 
   @Nullable
   public String getMigrationStatus() {
-    if (migrationmanager == null) {
-      return null;
+    if (migrationmanager != null) {
+      String status = migrationmanager.getProgressString();
+      if (status != null) {
+        return status;
+      }
     }
-    return migrationmanager.getProgressString();
+    if (databaseService != null) {
+      return databaseService.getMigrationStatus();
+    }
+    return null;
   }
 
   protected IAuxProtect getPlugin() {
