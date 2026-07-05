@@ -21,10 +21,11 @@ public class StringIDManager {
     this.table = table;
   }
 
-  public synchronized void init(Connection conn) throws SQLException {
+  public synchronized void init(Connection conn, boolean mysql) throws SQLException {
+    String autoIncrement = mysql ? "AUTO_INCREMENT" : "AUTOINCREMENT";
     try (PreparedStatement stmt = conn.prepareStatement(
         "CREATE TABLE IF NOT EXISTS " + table + " (" +
-            "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+            "id INTEGER PRIMARY KEY " + autoIncrement + "," +
             "value VARCHAR(255) UNIQUE NOT NULL" +
             ")")) {
       stmt.execute();
@@ -82,8 +83,11 @@ public class StringIDManager {
   }
 
   private boolean isUniqueViolation(SQLException e) {
-    return e.getMessage() != null
-        && e.getMessage().contains("UNIQUE");
+    // SQLite: message contains "UNIQUE constraint failed"
+    // MySQL/MariaDB: SQLState "23000", error code 1062
+    return (e.getMessage() != null && e.getMessage().contains("UNIQUE"))
+        || "23000".equals(e.getSQLState())
+        || e.getErrorCode() == 1062;
   }
 
   public Map<String, Integer> getOrInsertAll(Connection connection, Collection<String> values)
