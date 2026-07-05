@@ -179,6 +179,7 @@ public final class AuxProtectVelocity implements IAuxProtect {
     runAsync(() -> {
       try {
         sqlManager.init();
+        sqlManager.initExposedService();
         if (!config.isSkipRowCount()) {
           sqlManager.count();
         }

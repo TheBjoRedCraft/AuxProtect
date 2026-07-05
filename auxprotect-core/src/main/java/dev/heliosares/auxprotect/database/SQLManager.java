@@ -141,13 +141,6 @@ public class SQLManager extends ConnectionManager {
       throw e;
     }
 
-    plugin.info("Initializing Exposed database service...");
-
-    DatabaseConfig dbConfig = DatabaseConfig.fromAPConfig(plugin.getAPConfig(), sqliteFile);
-    this.databaseService = new DatabaseService(plugin, dbConfig);
-    databaseService.initialize();
-    databaseService.initializeQueryBuilder(this);
-
     isConnected = true;
     plugin.info("Connected!");
 
@@ -202,6 +195,23 @@ public class SQLManager extends ConnectionManager {
   }
 
   protected void otherConnectTasks() {
+  }
+
+  /**
+   * Initializes the Exposed database service. Must be called after {@link #init()} returns so that
+   * the legacy connection pool has released its connection before HikariCP opens a new one to the
+   * same SQLite file (avoiding SQLITE_BUSY).
+   */
+  public void initExposedService() {
+    if (databaseService != null) {
+      plugin.warning("Exposed database service is already initialized; skipping.");
+      return;
+    }
+    plugin.info("Initializing Exposed database service...");
+    DatabaseConfig dbConfig = DatabaseConfig.fromAPConfig(plugin.getAPConfig(), sqliteFile);
+    this.databaseService = new DatabaseService(plugin, dbConfig);
+    databaseService.initialize();
+    databaseService.initializeQueryBuilder(this);
   }
 
   public void close() {
