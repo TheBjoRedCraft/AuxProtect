@@ -409,6 +409,7 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
   protected void initDatabase() {
     try {
       sqlManager.init();
+      sqlManager.initExposedService();
       if (!config.isSkipRowCount()) {
         sqlManager.count();
       }
