@@ -203,6 +203,10 @@ public class SQLManager extends ConnectionManager {
    * same SQLite file (avoiding SQLITE_BUSY).
    */
   public void initExposedService() {
+    if (databaseService != null) {
+      plugin.warning("Exposed database service is already initialized; skipping.");
+      return;
+    }
     plugin.info("Initializing Exposed database service...");
     DatabaseConfig dbConfig = DatabaseConfig.fromAPConfig(plugin.getAPConfig(), sqliteFile);
     this.databaseService = new DatabaseService(plugin, dbConfig);
