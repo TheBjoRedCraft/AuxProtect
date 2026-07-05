@@ -14,26 +14,16 @@ import dev.heliosares.auxprotect.database.EntryAction;
 import dev.heliosares.auxprotect.database.SQLManager;
 import dev.heliosares.auxprotect.database.SpigotDatabaseRunnable;
 import dev.heliosares.auxprotect.database.SpigotSQLManager;
-import dev.heliosares.auxprotect.database.Table;
-import dev.heliosares.auxprotect.database.TownyHook;
 import dev.heliosares.auxprotect.paper.APPlayerSpigot;
 import dev.heliosares.auxprotect.paper.APSCommand;
 import dev.heliosares.auxprotect.paper.Telemetry;
 import dev.heliosares.auxprotect.paper.commands.ClaimInvCommand;
-import dev.heliosares.auxprotect.paper.listeners.AuctionHouseListener;
-import dev.heliosares.auxprotect.paper.listeners.ChestShopListener;
-import dev.heliosares.auxprotect.paper.listeners.EconomyShopGUIListener;
 import dev.heliosares.auxprotect.paper.listeners.EntityListener;
-import dev.heliosares.auxprotect.paper.listeners.EssentialsListener;
 import dev.heliosares.auxprotect.paper.listeners.InventoryListener;
-import dev.heliosares.auxprotect.paper.listeners.JobsListener;
 import dev.heliosares.auxprotect.paper.listeners.PaneListener;
-import dev.heliosares.auxprotect.paper.listeners.PlayerAuctionsListener;
 import dev.heliosares.auxprotect.paper.listeners.PlayerListener;
 import dev.heliosares.auxprotect.paper.listeners.ProjectileListener;
-import dev.heliosares.auxprotect.paper.listeners.ShopGUIPlusListener;
 import dev.heliosares.auxprotect.paper.listeners.WorldListener;
-import dev.heliosares.auxprotect.towny.TownyListener;
 import dev.heliosares.auxprotect.utils.Pane;
 import dev.heliosares.auxprotect.utils.StackUtil;
 import dev.heliosares.auxprotect.utils.UpdateChecker;
@@ -233,37 +223,6 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
     getServer().getPluginManager().registerEvents(new PaneListener(this), this);
     getServer().getPluginManager().registerEvents(new WorldListener(this), this);
 
-    // this feels cursed to run setupEconomy() like this...
-    Telemetry.reportHook(this, "Vault", setupEconomy());
-
-    EntryAction.SHOP_SGP.setEnabled(hook(() -> new ShopGUIPlusListener(this), "ShopGuiPlus"));
-    EntryAction.SHOP_ESG.setEnabled(
-        hook(() -> new EconomyShopGUIListener(this), "EconomyShopGUI", "EconomyShopGUI-Premium"));
-    EntryAction.SHOP_CS.setEnabled(hook(() -> new ChestShopListener(this), "ChestShop"));
-
-    boolean auctionHook = hook(() -> new AuctionHouseListener(this), "AuctionHouse");
-    if (hook(() -> new PlayerAuctionsListener(this), "PlayerAuctions")) {
-      auctionHook = true;
-    }
-    if (!auctionHook) {
-      EntryAction.AUCTIONBUY.setEnabled(false);
-      EntryAction.AUCTIONLIST.setEnabled(false);
-    }
-    if (!hook(() -> new JobsListener(this), "Jobs")) {
-      EntryAction.JOBS.setEnabled(false);
-    }
-    if (!hook(() -> new EssentialsListener(this), "Essentials")) {
-      EntryAction.PAY.setEnabled(false);
-    }
-    if (!hook(() -> new TownyListener(this), "Towny")) {
-      for (EntryAction action : EntryAction.values()) {
-        if (action.getTable() == Table.AUXPROTECT_TOWNY) {
-          action.setEnabled(false);
-        }
-      }
-      EntryAction.TOWNYNAME.setEnabled(false);
-    }
-
     claiminvcommand = new ClaimInvCommand(this);
     apcommand = createAPSCommand();
     Bukkit.getCommandMap().register(getName(), claiminvcommand);
@@ -397,8 +356,6 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
         apPlayer.tickDiffPos();
       }
     }
-
-    getSqlManager().getTownyHook().run();
 
     if (System.currentTimeMillis() - apPlayer.lastCheckedMovement >= 1000) {
       apPlayer.lastCheckedMovement = System.currentTimeMillis();
@@ -738,10 +695,6 @@ public class AuxProtectPaper extends JavaPlugin implements IAuxProtect {
   @Override
   public String[] getCommandAliases() {
     return new String[]{"ap", "aux"};
-  }
-
-  public TownyHook getTownyHook() {
-    return getSqlManager().getTownyHook();
   }
 
   private void checkcommand(String commandlbl) {

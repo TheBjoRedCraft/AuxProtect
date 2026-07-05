@@ -91,8 +91,6 @@ public class EntryAction {
   public static final EntryAction IP = new EntryAction("ip", 768, Table.AUXPROTECT_LONGTERM);
   public static final EntryAction USERNAME = new EntryAction("username", 769,
       Table.AUXPROTECT_LONGTERM);
-  public static final EntryAction TOWNYNAME = new EntryAction("townyname", 770,
-      Table.AUXPROTECT_LONGTERM);
   // INVENTORY
   public static final EntryAction INVENTORY = new EntryAction("inventory", 1024,
       Table.AUXPROTECT_INVENTORY);
@@ -101,10 +99,6 @@ public class EntryAction {
   public static final EntryAction GRAB = new EntryAction("grab", 1026, Table.AUXPROTECT_INVENTORY);
   public static final EntryAction DROP = new EntryAction("drop", 1027, Table.AUXPROTECT_INVENTORY);
   public static final EntryAction PICKUP = new EntryAction("pickup", 1028,
-      Table.AUXPROTECT_INVENTORY);
-  public static final EntryAction AUCTIONLIST = new EntryAction("auctionlist", 1029,
-      Table.AUXPROTECT_INVENTORY);
-  public static final EntryAction AUCTIONBUY = new EntryAction("auctionbuy", 1030,
       Table.AUXPROTECT_INVENTORY);
   public static final EntryAction BREAKITEM = new EntryAction("breakitem", 1032,
       Table.AUXPROTECT_INVENTORY);
@@ -120,10 +114,6 @@ public class EntryAction {
       Table.AUXPROTECT_INVENTORY);
   public static final EntryAction BUCKET = new EntryAction("bucket", 1158, 1159,
       Table.AUXPROTECT_INVENTORY);
-  public static final EntryAction CRATEOPEN = new EntryAction("crateopen", 1160,
-      Table.AUXPROTECT_INVENTORY);
-  public static final EntryAction CRATEREWARD = new EntryAction("cratereward", 1161,
-      Table.AUXPROTECT_INVENTORY);
   // COMMANDS
   public static final EntryAction COMMAND = new EntryAction("command", 1280,
       Table.AUXPROTECT_COMMANDS);
@@ -134,40 +124,6 @@ public class EntryAction {
   public static final EntryAction TP = new EntryAction("tp", 1291, 1292, Table.AUXPROTECT_POSITION);
   // XRAY
   public static final EntryAction VEIN = new EntryAction("vein", 1300, Table.AUXPROTECT_XRAY);
-  // TOWNY
-  public static final EntryAction TOWNCREATE = new EntryAction("towncreate", 1310,
-      Table.AUXPROTECT_TOWNY);
-  public static final EntryAction TOWNRENAME = new EntryAction("townrename", 1311,
-      Table.AUXPROTECT_TOWNY);
-  public static final EntryAction TOWNDELETE = new EntryAction("towndelete", 1312,
-      Table.AUXPROTECT_TOWNY);
-  public static final EntryAction TOWNJOIN = new EntryAction("townjoin", 1313, 1314,
-      Table.AUXPROTECT_TOWNY);
-  public static final EntryAction TOWNCLAIM = new EntryAction("townclaim", 1315, 1316,
-      Table.AUXPROTECT_TOWNY);
-  //    public static final EntryAction TOWNMERGE = new EntryAction("townmerge", 1317);
-  public static final EntryAction TOWNMAYOR = new EntryAction("townmayor", 1318,
-      Table.AUXPROTECT_TOWNY);
-  public static final EntryAction TOWNBANK = new EntryAction("townbank", 1319, 1320,
-      Table.AUXPROTECT_TOWNY);
-  public static final EntryAction TOWNBALANCE = new EntryAction("townbalance", 1321,
-      Table.AUXPROTECT_TOWNY);
-  public static final EntryAction NATIONCREATE = new EntryAction("nationcreate", 1400,
-      Table.AUXPROTECT_TOWNY);
-  public static final EntryAction NATIONRENAME = new EntryAction("nationrename", 1401,
-      Table.AUXPROTECT_TOWNY);
-  public static final EntryAction NATIONDELETE = new EntryAction("nationdelete", 1402,
-      Table.AUXPROTECT_TOWNY);
-  public static final EntryAction NATIONJOIN = new EntryAction("nationjoin", 1403, 1404,
-      Table.AUXPROTECT_TOWNY);
-  public static final EntryAction NATIONBANK = new EntryAction("nationbank", 1405, 1406,
-      Table.AUXPROTECT_TOWNY);
-  public static final EntryAction NATIONBALANCE = new EntryAction("nationbalance", 1407,
-      Table.AUXPROTECT_TOWNY);
-  public static final EntryAction SHOP_SGP = new EntryAction("shop_sgp", 1500, 1501,
-      Table.AUXPROTECT_TRANSACTIONS);
-  public static final EntryAction SHOP_ESG = new EntryAction("shop_esg", 1502, 1503,
-      Table.AUXPROTECT_TRANSACTIONS);
 
   // TRANSACTIONS
   // SHOP_DS : 1504, 1505

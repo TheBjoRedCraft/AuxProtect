@@ -1,10 +1,10 @@
 package dev.heliosares.auxprotect.adapters.sender;
 
-import com.palmergames.paperlib.PaperLib;
 import dev.heliosares.auxprotect.AuxProtectPaper;
 import dev.heliosares.auxprotect.adapters.location.LocationAdapter;
 import dev.heliosares.auxprotect.adapters.location.SpigotLocationAdapter;
 import dev.heliosares.auxprotect.exceptions.NotPlayerException;
+import io.papermc.lib.PaperLib;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;

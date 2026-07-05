@@ -438,13 +438,6 @@ public class LookupCommand<S, P extends IAuxProtect, SA extends SenderAdapter<S,
           countResult.totalMoney += value;
         }
         countResult.usersForJobsCount.add(entry.getUid());
-      } else if (entry.getAction().equals(EntryAction.AUCTIONBUY)) {
-        String[] parts = entry.getData().split(" ");
-        try {
-          double each = Double.parseDouble(parts[parts.length - 1].substring(1));
-          countResult.totalMoney += each;
-        } catch (Exception ignored) {
-        }
       } else if (entry.getAction().equals(EntryAction.DROP)
           || entry.getAction().equals(EntryAction.PICKUP)) {
         int quantity = -1;

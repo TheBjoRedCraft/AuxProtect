@@ -19,7 +19,6 @@ class TableRegistry(private val prefix: String) {
     val commandsTable = AuxProtectCommandsTable(prefix)
     val chatTable = AuxProtectChatTable(prefix)
     val positionTable = AuxProtectPositionTable(prefix)
-    val townyTable = AuxProtectTownyTable(prefix)
     val transactionsTable = AuxProtectTransactionsTable(prefix)
     val apiTable = AuxProtectApiTable(prefix)
 
@@ -52,7 +51,6 @@ class TableRegistry(private val prefix: String) {
             Table.AUXPROTECT_COMMANDS -> commandsTable
             Table.AUXPROTECT_CHAT -> chatTable
             Table.AUXPROTECT_POSITION -> positionTable
-            Table.AUXPROTECT_TOWNY -> townyTable
             Table.AUXPROTECT_TRANSACTIONS -> transactionsTable
             Table.AUXPROTECT_API -> apiTable
             Table.AUXPROTECT_INVDIFF -> invDiffTable
@@ -77,7 +75,7 @@ class TableRegistry(private val prefix: String) {
         return listOf(
             mainTable, spamTable, longtermTable, abandonedTable,
             xrayTable, inventoryTable, commandsTable, chatTable,
-            positionTable, townyTable, transactionsTable, apiTable
+            positionTable, transactionsTable, apiTable
         )
     }
 

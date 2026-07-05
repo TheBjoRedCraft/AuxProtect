@@ -159,22 +159,6 @@ class AuxProtectPositionTable(prefix: String = tablePrefix) :
     override val primaryKey = PrimaryKey(time)
 }
 
-/** AUXPROTECT_TOWNY — same as main */
-class AuxProtectTownyTable(prefix: String = tablePrefix) :
-    PrefixedTable("${prefix}auxprotect_towny") {
-    val time = long("time")
-    val uid = integer("uid")
-    val actionId = short("action_id")
-    val worldId = short("world_id")
-    val x = integer("x")
-    val y = short("y")
-    val z = integer("z")
-    val targetId = integer("target_id")
-    val data = text("data").nullable()
-
-    override val primaryKey = PrimaryKey(time)
-}
-
 /** AUXPROTECT_TRANSACTIONS — time, uid, action_id, world_id, x, y, z, target_id, data, blobid, quantity, cost, balance, target_id2 */
 class AuxProtectTransactionsTable(prefix: String = tablePrefix) :
     PrefixedTable("${prefix}auxprotect_transactions") {

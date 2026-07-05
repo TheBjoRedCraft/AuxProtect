@@ -1,6 +1,5 @@
 package dev.heliosares.auxprotect.paper.commands;
 
-import com.palmergames.paperlib.PaperLib;
 import dev.heliosares.auxprotect.adapters.sender.PositionedSender;
 import dev.heliosares.auxprotect.adapters.sender.SenderAdapter;
 import dev.heliosares.auxprotect.core.APPermission;
@@ -11,6 +10,7 @@ import dev.heliosares.auxprotect.exceptions.CommandException;
 import dev.heliosares.auxprotect.exceptions.NotPlayerException;
 import dev.heliosares.auxprotect.exceptions.PlatformException;
 import dev.heliosares.auxprotect.exceptions.SyntaxException;
+import io.papermc.lib.PaperLib;
 import java.util.List;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;

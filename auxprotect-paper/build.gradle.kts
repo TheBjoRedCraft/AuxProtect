@@ -1,5 +1,3 @@
-import net.minecrell.pluginyml.paper.PaperPluginDescription
-
 plugins {
     id("java")
     id("de.eldoria.plugin-yml.paper") version "0.8.0"
@@ -17,56 +15,8 @@ paper {
     foliaSupported = true
 
     serverDependencies {
-        register("AuctionHouse") {
-            required = false
-        }
-        register("ChestShop") {
-            required = false
-        }
         register("CoreProtect") {
             required = false
-        }
-        register("DynamicShop") {
-            required = false
-        }
-        register("EconomyShopGUI") {
-            required = false
-        }
-        register("EconomyShopGUI-Premium") {
-            required = false
-        }
-        register("Essentials") {
-            required = false
-        }
-        register("PlayerAuctions") {
-            required = false
-        }
-        register("ProtocolLib") {
-            required = false
-        }
-        register("Jobs") {
-            required = false
-        }
-        register("ShopGUIPlus") {
-            required = false
-        }
-        register("Towny") {
-            required = false
-        }
-        register("Vault") {
-            required = false
-        }
-        register("AdvancedPortals") {
-            required = false
-            load = PaperPluginDescription.RelativeLoadOrder.BEFORE
-        }
-        register("AnnouncerPlus") {
-            required = false
-            load = PaperPluginDescription.RelativeLoadOrder.BEFORE
-        }
-        register("ajParkour") {
-            required = false
-            load = PaperPluginDescription.RelativeLoadOrder.BEFORE
         }
     }
 }
@@ -77,43 +27,25 @@ repositories {
     maven("https://jitpack.io")
     maven("https://maven.playpro.com")
     maven("https://repo.essentialsx.net/releases/")
-    maven("https://repo.glaremasters.me/repository/towny/")
     maven("https://repo.olziedev.com/")
     maven("https://repo.nightexpressdev.com/releases")
-    maven("https://maven.atownyserver.com/")
+    maven("https://maven.atownyserver.com/")  // For KshLib
     maven("https://mvn-repo.arim.space/lesser-gpl3/")
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT")
+    compileOnly("io.papermc.paper:paper-api:26.2.build.48-alpha")
 
     implementation(project(":auxprotect-core"))
-    implementation("dev.kshl", "KshLib", "2.0")
+    implementation("dev.kshl:KshLib:2.0")
 
-    compileOnly("com.acrobot.chestshop:chestshop:3.12.2")
     compileOnly("net.coreprotect:coreprotect:22.4")
     implementation("io.papermc:paperlib:1.0.7")
-    implementation("space.arim.morepaperlib:morepaperlib:0.4.3")
+    implementation("space.arim.morepaperlib:morepaperlib:0.5.4-SNAPSHOT")
 
     compileOnly("com.github.MilkBowl:VaultAPI:1.7") {
         exclude(group = "org.bukkit", module = "bukkit")
     }
-
-    implementation("com.github.brcdev-minecraft:shopgui-api:3.0.0") {
-        isTransitive = false
-    }
-    implementation("com.github.Gypopo:EconomyShopGUI-API:1.7.1")
-
-    compileOnly("com.github.Zrips:Jobs:4.17.2") {
-        isTransitive = false
-    }
-    compileOnly("net.essentialsx:EssentialsX:2.20.1") {
-        isTransitive = false
-    }
-    compileOnly("com.palmergames.bukkit.towny:towny:0.101.2.0")
-
-    compileOnly("com.github.Heliosares:AuctionHouseAPI:756e099dff")
-    compileOnly("com.olziedev:playerauctions-api:1.27.3")
 }
 
 tasks.shadowJar {
