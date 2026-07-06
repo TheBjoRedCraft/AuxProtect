@@ -265,8 +265,8 @@ public class SQLManager extends ConnectionManager {
       transactionBlobManager.createTable(connection);
     }
 
-    uidManager.init(connection);
-    enumIDManager.init(connection);
+    uidManager.init(connection, isMySQL());
+    enumIDManager.init(connection, isMySQL());
 
     boolean doIndex = plugin.getAPConfig().isIndexing();
     if (doIndex) {
