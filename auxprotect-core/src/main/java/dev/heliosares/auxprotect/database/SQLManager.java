@@ -117,21 +117,24 @@ public class SQLManager extends ConnectionManager {
 
     plugin.info("Connecting to database...");
 
+    // NOTE: Deliberately not wrapped in executeTransaction. This method is already called from
+    // within a transaction by ConnectionManager#init, so nesting another one would open a
+    // SAVEPOINT. MySQL implicitly commits - and thereby discards every savepoint - on each DDL
+    // statement, so releasing or rolling back that savepoint after creating/altering tables fails
+    // with "SAVEPOINT <id> does not exist". The enclosing transaction still covers this block.
     try {
-      executeTransaction(connection, () -> {
-        this.migrationmanager = new MigrationManager(this, connection, plugin);
-        migrationmanager.preTables();
+      this.migrationmanager = new MigrationManager(this, connection, plugin);
+      migrationmanager.preTables();
 
-        createTables(connection);
+      createTables(connection);
 
-        usermanager.init(connection);
+      usermanager.init(connection);
 
-        migrationmanager.postTables();
+      migrationmanager.postTables();
 
-        postTables(connection);
+      postTables(connection);
 
-        plugin.debug("table init done.");
-      });
+      plugin.debug("table init done.");
     } catch (Throwable e) {
       if (migrationmanager != null && migrationmanager.isMigrating()) {
         plugin.warning("An error occurred while migrating database. Rolling back changes.");
