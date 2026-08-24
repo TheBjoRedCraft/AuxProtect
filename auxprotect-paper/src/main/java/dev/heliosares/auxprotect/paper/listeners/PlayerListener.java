@@ -7,6 +7,7 @@ import dev.heliosares.auxprotect.core.Activity;
 import dev.heliosares.auxprotect.core.Language;
 import dev.heliosares.auxprotect.database.DbEntry;
 import dev.heliosares.auxprotect.database.EntryAction;
+import dev.heliosares.auxprotect.database.SQLManager;
 import dev.heliosares.auxprotect.database.SingleItemEntry;
 import dev.heliosares.auxprotect.database.SpigotDbEntry;
 import dev.heliosares.auxprotect.paper.APPlayerSpigot;
@@ -234,7 +235,7 @@ public class PlayerListener implements Listener {
         target = ip;
       }
       logSession(e.getPlayer(), true, target);
-      AuxProtectPaper.getMorePaperLib().scheduling().asyncScheduler().run(() -> {
+      runAsyncWhenDatabaseReady(null, () -> {
         try {
           plugin.getSqlManager().getUserManager().updateUsernameAndIP(e.getPlayer().getUniqueId(),
               e.getPlayer().getName(), ip);
@@ -254,7 +255,7 @@ public class PlayerListener implements Listener {
 
     apPlayer.logInventory("join");
 
-    AuxProtectPaper.getMorePaperLib().scheduling().asyncScheduler().runDelayed(() -> {
+    runAsyncWhenDatabaseReady(Duration.ofMillis(2000), () -> {
       try {
         if (plugin.getSqlManager().getUserManager()
             .getPendingInventory(plugin.getSqlManager().getUserManager()
@@ -289,11 +290,38 @@ public class PlayerListener implements Listener {
 
       e.getPlayer().sendMessage(message.build());
       e.getPlayer().playSound(e.getPlayer().getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1f);
-    }, Duration.ofMillis(2000));
+    });
 
     if (plugin.update != null && APPermission.ADMIN.hasPermission(senderAdapter)) {
       AuxProtectPaper.getMorePaperLib().scheduling().globalRegionalScheduler()
           .runDelayed(() -> plugin.tellAboutUpdate(e.getPlayer()), 20);
+    }
+  }
+
+  /**
+   * Runs a task asynchronously, holding it back until the database has finished initializing.
+   * Players can join while the database is still being set up, and until it is ready every query
+   * fails with IllegalStateException("Not yet initialized").
+   *
+   * @param delay how long to delay the task once the database is ready, or null to run it
+   *              immediately.
+   */
+  private void runAsyncWhenDatabaseReady(Duration delay, Runnable task) {
+    SQLManager sqlManager = plugin.getSqlManager();
+    if (sqlManager == null) {
+      return;
+    }
+    Runnable schedule = () -> {
+      if (delay == null) {
+        AuxProtectPaper.getMorePaperLib().scheduling().asyncScheduler().run(task);
+      } else {
+        AuxProtectPaper.getMorePaperLib().scheduling().asyncScheduler().runDelayed(task, delay);
+      }
+    };
+    if (sqlManager.isReady()) {
+      schedule.run();
+    } else {
+      sqlManager.whenInitialized().thenRun(schedule);
     }
   }
 

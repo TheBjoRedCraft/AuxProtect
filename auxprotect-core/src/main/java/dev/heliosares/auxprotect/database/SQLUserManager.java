@@ -52,8 +52,10 @@ public class SQLUserManager {
           ORDER BY time DESC
           LIMIT 1
           """, Table.AUXPROTECT_LONGTERM, Table.AUXPROTECT_UIDS);
-      if (sql.query(connection, stmt, rs -> !name.equalsIgnoreCase(rs.getString(1)), uid,
-          EntryAction.USERNAME.id)) {
+      // rs starts before the first row, so next() must be called before reading. No row at all
+      // means this user has no recorded username yet, which counts as a change.
+      if (sql.query(connection, stmt, rs -> !rs.next() || !name.equalsIgnoreCase(rs.getString(1)),
+          uid, EntryAction.USERNAME.id)) {
         plugin.add(new DbEntry("$" + uuid, EntryAction.USERNAME, false, name, ""));
       }
     }, 300000L);

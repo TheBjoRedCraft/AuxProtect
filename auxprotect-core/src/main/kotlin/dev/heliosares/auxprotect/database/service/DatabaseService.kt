@@ -206,6 +206,8 @@ class DatabaseService(
      * Gets the migration status string, or null if not migrating.
      */
     fun getMigrationStatus(): String? {
+        // Can be polled by scheduled tasks before initialize() has assigned the services.
+        if (!::migrationService.isInitialized) return null
         return migrationService.getProgressString()
     }
 }

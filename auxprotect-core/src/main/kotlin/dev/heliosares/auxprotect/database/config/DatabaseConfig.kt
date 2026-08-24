@@ -51,7 +51,13 @@ data class DatabaseConfig(
      */
     fun getJdbcUrl(): String {
         return if (isMySQL) {
-            "jdbc:mysql://$host:$port/$database?useSSL=false&allowPublicKeyRetrieval=true"
+            // useInformationSchema=false: Connector/J 8.4+ defaults this to true, which makes
+            // DatabaseMetaData read from INFORMATION_SCHEMA. Exposed asks for getSQLKeywords(),
+            // which then queries INFORMATION_SCHEMA.KEYWORDS.RESERVED - a column MariaDB does not
+            // have, failing with "Unknown column 'RESERVED' in 'WHERE'". The SHOW-based metadata
+            // implementation used when this is false works on both MySQL and MariaDB.
+            "jdbc:mysql://$host:$port/$database?useSSL=false&allowPublicKeyRetrieval=true" +
+                    "&useInformationSchema=false"
         } else {
             "jdbc:sqlite:${sqliteFile?.absolutePath}"
         }
